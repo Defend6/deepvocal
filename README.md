@@ -21,7 +21,7 @@ DeepVocal 是基于 LangGraph 的多 Agent 声乐辅助系统。当前仓库从�
 6. 安装并运行前端：`npm --prefix apps/web install && npm --prefix apps/web run dev`。
 7. 后端测试：`Set-Location apps/api; ..\\..\\.venv\\Scripts\\python -m pytest`。
 
-当前实现节点已完成：React 前端可访问 FastAPI 健康检查和结构化路由接口，规则路由与健康接口测试通过。真实模型、知识检索、音频分析、业务数据库迁移、对象存储适配器和后台 worker 尚未实现；页面中的音频上传按钮目前仅是入口占位。
+当前实现节点已完成：React 前端可访问 FastAPI 健康检查和结构化路由接口；API 提供只读 GraphRAG 语料状态端点，并明确返回审核/生产启用阻断原因。真实模型、知识检索、音频分析、完整业务数据模型迁移、对象存储适配器和后台 worker 尚未实现；页面中的音频上传按钮目前仅是入口占位。各阶段待开发项见 `docs/31_后续开发路线与未完成项.md`。
 
 ## 分支约定
 

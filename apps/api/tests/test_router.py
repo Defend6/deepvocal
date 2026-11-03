@@ -1,7 +1,7 @@
-from app.agents.router import RuleRouter
 from fastapi.testclient import TestClient
-from app.main import app
 
+from app.agents.router import RuleRouter
+from app.main import app
 
 client = TestClient(app)
 
@@ -35,3 +35,15 @@ def test_health_endpoint_reports_mock_capabilities() -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["singing_enabled"] is False
+
+
+def test_corpus_status_exposes_review_gate() -> None:
+    response = client.get("/v1/knowledge/corpus/status")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["corpus_version"] == "seed-20261103-v1"
+    assert payload["document_count"] == 35
+    assert payload["chunk_count"] == 166
+    assert payload["production_enabled"] is False
+    assert "expert review is incomplete" in payload["production_blockers"]
+    assert payload["review_status"] == "NEEDS_REVIEW"

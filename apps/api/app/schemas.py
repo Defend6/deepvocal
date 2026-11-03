@@ -2,7 +2,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 AgentName = Literal["knowledge", "assessment", "planning", "singing", "clarify"]
 
 
@@ -30,3 +29,21 @@ class CapabilityResponse(BaseModel):
     enabled: bool
     status: Literal["available", "disabled", "mock"]
     reason: str | None = None
+
+
+class CorpusStatusResponse(BaseModel):
+    corpus_version: str
+    status: str
+    document_count: int
+    chunk_count: int
+    entity_count: int
+    relation_candidate_count: int
+    source_count: int
+    review_status: str
+    production_enabled: bool
+    production_blockers: list[str]
+    embeddings_computed: bool
+    neo4j_loaded: bool
+    milvus_loaded: bool
+    expert_review_completed: bool
+    user_practice_record_count: int
