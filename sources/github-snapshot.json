@@ -1,0 +1,110 @@
+{
+  "checked_date": "2026-11-03",
+  "repositories": [
+    {
+      "repo": "CHamilton02/harmonai-vocal-coach",
+      "sha": "e68a012ab5c1e5a9ac209536b653fc6e148c9d28",
+      "license": null,
+      "role": "业务体验参考",
+      "fit": "较高",
+      "notes": "仓库简介为 Gemini 多模态声乐教练，Express 与 Vue；可参考交互与反馈组织，不能据此证明声学评分有效。",
+      "url": "https://github.com/CHamilton02/harmonai-vocal-coach",
+      "pinned_url": "https://github.com/CHamilton02/harmonai-vocal-coach/tree/e68a012ab5c1e5a9ac209536b653fc6e148c9d28",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "akhilvydyula/predict-voice-quality",
+      "sha": "78e30f766efde6c8c66d9e5a47441b44312d216c",
+      "license": "MIT",
+      "role": "录音及音高可视化参考",
+      "fit": "较高",
+      "notes": "仓库简介强调实时歌唱分析、声乐工具和端侧音高检测；不覆盖完整 Agent 及 GraphRAG 闭环。",
+      "url": "https://github.com/akhilvydyula/predict-voice-quality",
+      "pinned_url": "https://github.com/akhilvydyula/predict-voice-quality/tree/78e30f766efde6c8c66d9e5a47441b44312d216c",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "Alea4jacta6est/openai-vocal-coach",
+      "sha": "7dcd97e3872eeec4f9605096044095a23ec075dc",
+      "license": "Apache-2.0",
+      "role": "音频建议和提示词参考",
+      "fit": "局部",
+      "notes": "README 展示 HTML 与音频转录、建议流程；是较简单的建议应用，不应作为精准歌唱测评后端。",
+      "url": "https://github.com/Alea4jacta6est/openai-vocal-coach",
+      "pinned_url": "https://github.com/Alea4jacta6est/openai-vocal-coach/tree/7dcd97e3872eeec4f9605096044095a23ec075dc",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "HKUDS/LightRAG",
+      "sha": "aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+      "license": "MIT",
+      "role": "图检索工程参考",
+      "fit": "核心组件",
+      "notes": "提供图结构检索和多存储接入文档；可研究实体关系、索引和评测，不等于本项目指定检索流程已实现。",
+      "url": "https://github.com/HKUDS/LightRAG",
+      "pinned_url": "https://github.com/HKUDS/LightRAG/tree/aaebfe1bb8d55deb6a4304d357a3bf4c92fcd40a",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "openvpi/DiffSinger",
+      "sha": "e4740fbd455cde1101063246b868f45828f23e2c",
+      "license": "Apache-2.0",
+      "role": "SVS 候选",
+      "fit": "核心组件",
+      "notes": "歌声合成生态，需具体声库、模型和音素资源；适合有旋律条件的生成，不能直接假定零样本克隆。",
+      "url": "https://github.com/openvpi/DiffSinger",
+      "pinned_url": "https://github.com/openvpi/DiffSinger/tree/e4740fbd455cde1101063246b868f45828f23e2c",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "sha": "81eed5e8f68b6bed1789f682fe78cdd324495afc",
+      "license": "MIT",
+      "role": "SVC 候选",
+      "fit": "核心组件",
+      "notes": "语音与歌声音色转换方向，需要输入干声并核对模型训练要求，不是纯歌词到旋律。",
+      "url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI",
+      "pinned_url": "https://github.com/RVC-Project/Retrieval-based-Voice-Conversion-WebUI/tree/81eed5e8f68b6bed1789f682fe78cdd324495afc",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "Dream-High/RMVPE",
+      "sha": "a6db1cd7d26014aa739383367afd9bab57fc624c",
+      "license": "Apache-2.0",
+      "role": "F0 候选",
+      "fit": "核心组件",
+      "notes": "官方 README 提供人声音高估计与推理入口；可试用于 F0 提取，但准确性需在本项目数据验证。",
+      "url": "https://github.com/Dream-High/RMVPE",
+      "pinned_url": "https://github.com/Dream-High/RMVPE/tree/a6db1cd7d26014aa739383367afd9bab57fc624c",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    },
+    {
+      "repo": "langchain-ai/langgraph",
+      "sha": "3c916d750575b22c464790e9774494d810ccd322",
+      "license": "MIT",
+      "role": "编排基础",
+      "fit": "基础设施",
+      "notes": "截图要求的编排框架；参考官方状态和持久化机制，项目自己的权限与任务规则仍要实现。",
+      "url": "https://github.com/langchain-ai/langgraph",
+      "pinned_url": "https://github.com/langchain-ai/langgraph/tree/3c916d750575b22c464790e9774494d810ccd322",
+      "checked_date": "2026-11-03",
+      "method": "GitHub repository and commit API plus public README",
+      "runtime_verified": false
+    }
+  ],
+  "note": "主分支快照用于调研引用；不是依赖兼容性锁。许可证仅代码层；模型、权重、声库和数据另查。"
+}

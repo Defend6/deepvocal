@@ -1,0 +1,16 @@
+{
+  "scope": "documentation_data_counts_and_synthetic_formula_checks_only",
+  "passed": 373,
+  "failed": 0,
+  "failures": [],
+  "documents": 27,
+  "functional_requirements": 46,
+  "nonfunctional_requirements": 12,
+  "api_operations": 51,
+  "tables": 48,
+  "acceptance_cases": 92,
+  "integrity_checked": false,
+  "sql_executed": false,
+  "models_executed": false,
+  "application_tests_executed": false
+}

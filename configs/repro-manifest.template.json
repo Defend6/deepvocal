@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "status": "design_only",
+  "recorded_at": null,
+  "code_commit": null,
+  "python_version": null,
+  "dependency_lock_sha256": null,
+  "images": {
+    "postgres": null,
+    "milvus": null,
+    "neo4j": null,
+    "redis": null,
+    "object_storage": null,
+    "api": null,
+    "worker": null
+  },
+  "models": {
+    "llm_revision": null,
+    "embedding_revision": null,
+    "reranker_revision": null,
+    "pitch_revision": null,
+    "singing_revision": null,
+    "weight_sha256": null,
+    "tokenizer_revision": null
+  },
+  "data": {
+    "corpus_sha256": null,
+    "gold_sha256": null,
+    "audio_manifest_sha256": null
+  },
+  "runtime": {
+    "os": null,
+    "cpu": null,
+    "ram_gb": null,
+    "gpu": null,
+    "driver": null,
+    "cuda": null,
+    "ffmpeg_version": null
+  },
+  "seed": 42,
+  "config_sha256": null,
+  "results_path": null,
+  "unresolved": [
+    "exact_dependencies",
+    "model_selection",
+    "licensed_corpus",
+    "human_gold_dataset",
+    "hardware_benchmark"
+  ]
+}

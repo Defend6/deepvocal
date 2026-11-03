@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Local secrets and runtime state
+.env
+.env.*
+!.env.example
+runtime/
+logs/
+uploads/
+
+# Generated datasets and indexes
+datasets/working/
+datasets/embeddings/
+datasets/indexes/
+datasets/raw/
+datasets/normalized/*.sqlite3
+_qa/portable-*/
+_qa/*.png
+_qa/*.json
+_qa/
+sources/user-inputs/
+apps/web/dist/
+*.sqlite3-shm
+*.sqlite3-wal
+
+# IDE / OS
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

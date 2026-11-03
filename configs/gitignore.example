@@ -1,0 +1,22 @@
+# Future code repository template: copy to project .gitignore and review tracked files.
+.env
+.env.*
+!.env.example
+!configs/.env.example
+**/__pycache__/
+*.pyc
+/node_modules/
+/.venv/
+/logs/
+/data/
+/models/
+/backups/
+/datasets/raw/
+/datasets/normalized/
+/sources/user-inputs/
+/_qa/
+*.sqlite3
+*.dump
+*.pem
+*.key
+# Data licensing and document de-identification require a separate publish whitelist.

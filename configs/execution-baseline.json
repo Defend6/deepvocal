@@ -1,0 +1,27 @@
+{
+  "version": "1.4",
+  "status": "DOCUMENTATION_BASELINE_NOT_IMPLEMENTED",
+  "audience": [
+    "adult_beginner",
+    "adult_hobbyist"
+  ],
+  "style": "chinese_pop",
+  "knowledge_language": "zh",
+  "source_language_policy": "zh_original_only",
+  "singing_enabled": false,
+  "audio_mode": "acappella_only",
+  "evaluation_owner": "USER_MANAGED_EXTERNAL",
+  "professional_validation": false,
+  "raw_retention_days_default": 30,
+  "report_retention_days_default": 180,
+  "backup_retention_days_max": 30,
+  "signed_download_ttl_seconds": 300,
+  "retention_choices_days": [
+    7,
+    30,
+    90,
+    180
+  ],
+  "requires_paid_provider_selection_before_use": true,
+  "corpus_seed_is_active": false
+}

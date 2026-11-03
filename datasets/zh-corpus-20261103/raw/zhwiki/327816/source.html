@@ -1,0 +1,94 @@
+<div class="mw-content-ltr mw-parser-output" lang="zh" dir="ltr"><div id="noteTA-9365d189" class="noteTA"><div class="noteTA-title" data-noteta-code="zh-hans:采样率; zh-hant:取樣率;"></div><div class="noteTA-group"><div data-noteta-group-source="module" data-noteta-group="IT"></div></div><div class="noteTA-local"><div data-noteta-code="zh-hans:采样; zh-hant:取樣;"></div></div></div>
+<p><b>采样率</b>（也称为<b>采样速度</b>或者<b>采样频率</b>）定义了每秒从<a href="/wiki/%E8%BF%9E%E7%BB%AD%E4%BF%A1%E5%8F%B7" title="连续信号">连续信号</a>中提取并组成<a href="/wiki/%E7%A6%BB%E6%95%A3%E4%BF%A1%E5%8F%B7" title="离散信号">离散信号</a>的<a href="/wiki/%E9%87%87%E6%A0%B7" class="mw-disambig" title="采样">采样</a>个数，它用<a href="/wiki/%E8%B5%AB%E5%85%B9" title="赫兹">赫兹</a>（Hz）来表示。采样频率的倒数叫作<b>采样周期</b>或<b>采样时间</b>，它是<a href="/wiki/%E9%87%87%E6%A0%B7" class="mw-disambig" title="采样">采样</a>之间的时间间隔。注意不要将采样率与<a href="/wiki/%E6%AF%94%E7%89%B9%E7%8E%87" title="比特率">比特率</a>（bit rate，亦称“位元率”）相混淆。
+</p><p>采样频率只能用于周期性采样的<a href="/wiki/%E9%87%87%E6%A0%B7%E5%99%A8" class="mw-disambig" title="采样器">采样器</a>，对于非周期性采样的采样器没有规则限制。
+</p><p>采样频率的常用的表示符号是<span class="mwe-math-element mwe-math-element-inline"><span class="mwe-math-mathml-a11y" style="display: none;"><math class="mathjax_ignore" xmlns="http://www.w3.org/1998/Math/MathML"  alttext="{\displaystyle f_{s}\,}">
+  <semantics>
+    <mrow class="MJX-TeXAtom-ORD">
+      <mstyle displaystyle="true" scriptlevel="0">
+        <msub>
+          <mi>f</mi>
+          <mrow class="MJX-TeXAtom-ORD">
+            <mi>s</mi>
+          </mrow>
+        </msub>
+        <mspace width="thinmathspace" />
+      </mstyle>
+    </mrow>
+    <annotation encoding="application/x-tex">{\displaystyle f_{s}\,}</annotation>
+  </semantics>
+</math></span><img src="https://wikimedia.org/api/rest_v1/media/math/render/svg/879789d2ae4be80ffbdef2080dc5b6f92c9a19ea" class="mwe-math-fallback-image-inline mw-invert skin-invert" aria-hidden="true" style="vertical-align: -0.671ex; width:2.53ex; height:2.509ex;" alt="{\displaystyle f_{s}\,}"></span>。
+</p>
+<meta property="mw:PageProp/toc" />
+<div class="mw-heading mw-heading2"><h2 id="采样定理"><span id=".E9.87.87.E6.A0.B7.E5.AE.9A.E7.90.86"></span>采样定理</h2></div>
+<p><a href="/wiki/%E9%87%87%E6%A0%B7%E5%AE%9A%E7%90%86" title="采样定理">采样定理</a>表明采样频率必须大于被采样信号<a href="/wiki/%E5%B8%A6%E5%AE%BD" title="带宽">带宽</a>的两倍，另外一种等同的说法是<a href="/wiki/%E5%A5%88%E5%A5%8E%E6%96%AF%E7%89%B9%E9%A2%91%E7%8E%87" title="奈奎斯特频率">奈奎斯特频率</a>必须大于被采样信号的带宽。
+</p><p>如果信号的带宽是100Hz，那么为了避免<a href="/wiki/%E6%B7%B7%E5%8F%A0" class="mw-redirect" title="混叠">混叠</a>现象采样频率必须大于200Hz。
+</p><p>换句话说就是采样频率必须至少是信号中最大频率分量频率的两倍，否则就不能从信号采样中恢复原始信号。
+</p>
+<div class="mw-heading mw-heading2"><h2 id="过采样"><span id=".E8.BF.87.E9.87.87.E6.A0.B7"></span>过采样</h2></div>
+<p>在有些情况下，人们希望采样频率超出信号带宽的两倍这样就可以用<a href="/wiki/%E6%95%B0%E5%AD%97%E6%BB%A4%E6%B3%A2%E5%99%A8" title="数字滤波器">数字滤波器</a>替换性能不好的模拟<a href="/wiki/%E6%8A%97%E6%B7%B7%E7%96%8A%E6%BF%BE%E6%B3%A2%E5%99%A8" title="抗混疊濾波器">抗混叠滤波器</a>，这个过程称为<a href="/wiki/%E8%BF%87%E9%87%87%E6%A0%B7" title="过采样">过采样</a>。
+</p>
+<div class="mw-heading mw-heading2"><h2 id="视频系统"><span id=".E8.A7.86.E9.A2.91.E7.B3.BB.E7.BB.9F"></span>视频系统</h2></div>
+<p>在<a href="/w/index.php?title=%E6%A8%A1%E6%8B%9F%E8%A7%86%E9%A2%91&amp;action=edit&amp;redlink=1" class="new" title="模拟视频（页面不存在）">模拟视频</a>中，采样率定义为帧频和场频，而不是概念上的像素时钟。图像采样频率是传感器积分周期的循环速度。由于积分周期远远小于重复所需时间，采样频率可能与采样时间的倒数不同。
+</p>
+<ul><li>50 Hz - <a href="/wiki/PAL%E5%88%B6%E5%BC%8F" title="PAL制式">PAL</a>视频</li>
+<li>60 / 1.001 Hz - <a href="/wiki/NTSC" class="mw-redirect" title="NTSC">NTSC</a>视频</li></ul>
+<p>当模拟视频转换为<a href="/wiki/%E6%95%B0%E5%AD%97%E8%A7%86%E9%A2%91" title="数字视频">数字视频</a>的时候，出现另外一种不同的采样过程，这次是使用像素频率。一些常见的<a href="/wiki/%E5%83%8F%E7%B4%A0" title="像素">像素</a>采样率有：
+</p>
+<ul><li>13.5 MHz - <a href="/wiki/CCIR_601" class="mw-redirect" title="CCIR 601">CCIR 601</a>、<a href="/w/index.php?title=D1_video&amp;action=edit&amp;redlink=1" class="new" title="D1 video（页面不存在）">D1 video</a></li></ul>
+<p>高频<a href="/w/index.php?title=Luminance_(video)&amp;action=edit&amp;redlink=1" class="new" title="Luminance (video)（页面不存在）">luminance</a>成分的<a href="/w/index.php?title=%E6%B7%B7%E6%B7%86%E7%8E%B0%E8%B1%A1&amp;action=edit&amp;redlink=1" class="new" title="混淆现象（页面不存在）">混淆现象</a>作为<a href="/w/index.php?title=Moir%C3%A9_pattern&amp;action=edit&amp;redlink=1" class="new" title="Moiré pattern（页面不存在）">moiré pattern</a>出现。
+</p>
+<div class="mw-heading mw-heading2"><h2 id="音频"><span id=".E9.9F.B3.E9.A2.91"></span>音频</h2></div>
+<p>在<a href="/wiki/%E6%95%B8%E4%BD%8D%E9%9F%B3%E8%A8%8A" title="數位音訊">數位音訊</a>领域，常用的采样率有：
+</p>
+<ul><li>8,000 Hz - <a href="/wiki/%E7%94%B5%E8%AF%9D" title="电话">电话</a>所用采样率，对于人的说话已经足够</li>
+<li>11,025 Hz</li>
+<li>22,050 Hz - <a href="/wiki/%E6%97%A0%E7%BA%BF%E7%94%B5" title="无线电">无线电</a><a href="/wiki/%E5%B9%BF%E6%92%AD" title="广播">广播</a>所用采样率</li>
+<li>32,000 Hz - <a href="/wiki/MiniDV" class="mw-redirect" title="MiniDV">miniDV</a>数码视频<a href="/w/index.php?title=Camcorder&amp;action=edit&amp;redlink=1" class="new" title="Camcorder（页面不存在）">camcorder</a>、<a href="/w/index.php?title=Digital_Audio_Tape&amp;action=edit&amp;redlink=1" class="new" title="Digital Audio Tape（页面不存在）">DAT</a>（LP mode）所用采样率</li>
+<li>44,100 Hz - <a href="/wiki/CDDA" class="mw-redirect" title="CDDA">音频CD</a>，也常用于<a href="/wiki/MPEG-1" title="MPEG-1">MPEG-1</a>音频（<a href="/wiki/VCD" title="VCD">VCD</a>、<a href="/wiki/SVCD" title="SVCD">SVCD</a>、<a href="/wiki/MP3" title="MP3">MP3</a>）所用采样率</li>
+<li>47,250 Hz - <a href="/w/index.php?title=Nippon_Columbia&amp;action=edit&amp;redlink=1" class="new" title="Nippon Columbia（页面不存在）">Nippon Columbia</a>（Denon）开发的世界上第一个商用<a href="/wiki/%E8%84%88%E8%A1%9D%E7%B7%A8%E7%A2%BC%E8%AA%BF%E8%AE%8A" title="脈衝編碼調變">PCM</a>录音机所用采样率</li>
+<li>48,000 Hz - miniDV、<a href="/wiki/%E6%95%B0%E5%AD%97%E7%94%B5%E8%A7%86" title="数字电视">数字电视</a>、<a href="/wiki/DVD" title="DVD">DVD</a>、<a href="/w/index.php?title=Digital_Audio_Tape&amp;action=edit&amp;redlink=1" class="new" title="Digital Audio Tape（页面不存在）">DAT</a>、电影和专业音频所用的数字声音所用采样率</li>
+<li>50,000 Hz - 二十世纪七十年代后期出现的<a href="/wiki/3M" class="mw-redirect" title="3M">3M</a>和<a href="/w/index.php?title=Soundstream&amp;action=edit&amp;redlink=1" class="new" title="Soundstream（页面不存在）">Soundstream</a>开发的第一款商用数字录音机所用采样率</li>
+<li>50,400 Hz - <a href="/wiki/%E4%B8%89%E8%8F%B1" class="mw-disambig" title="三菱">三菱</a>X-80数字录音机所用所用采样率</li>
+<li>96,000或者192,000 Hz - <a href="/wiki/DVD-Audio" title="DVD-Audio">DVD-Audio</a>、一些<a href="/w/index.php?title=LPCM&amp;action=edit&amp;redlink=1" class="new" title="LPCM（页面不存在）">LPCM</a> DVD音轨、<a href="/wiki/Blu-ray_Disc" class="mw-redirect" title="Blu-ray Disc">Blu-ray Disc</a>（藍光光碟）音轨、和<a href="/wiki/HD-DVD" class="mw-redirect" title="HD-DVD">HD-DVD</a>（高清晰度DVD）音轨所用所用采样率</li>
+<li>2.8224 MHz - <a href="/wiki/SACD" class="mw-redirect" title="SACD">SACD</a>、<a href="/wiki/%E7%B4%A2%E5%B0%BC" title="索尼">索尼</a>和<a href="/wiki/%E9%A3%9E%E5%88%A9%E6%B5%A6" class="mw-redirect" title="飞利浦">飞利浦</a>联合开发的称为<a href="/wiki/Direct_Stream_Digital" title="Direct Stream Digital">Direct Stream Digital</a>的1位<a href="/w/index.php?title=Sigma-delta_modulation&amp;action=edit&amp;redlink=1" class="new" title="Sigma-delta modulation（页面不存在）">sigma-delta modulation</a>过程所用采样率。</li></ul>
+<div class="mw-heading mw-heading2"><h2 id="参见"><span id=".E5.8F.82.E8.A7.81"></span>参见</h2></div>
+<ul><li><a href="/wiki/%E8%BF%9E%E7%BB%AD%E4%BF%A1%E5%8F%B7" title="连续信号">连续信号</a>与<a href="/wiki/%E7%A6%BB%E6%95%A3%E4%BF%A1%E5%8F%B7" title="离散信号">离散信号</a></li>
+<li><a href="/wiki/MP3" title="MP3">MP3</a></li>
+<li><a href="/wiki/%E6%95%B8%E4%BD%8D%E6%8E%A7%E5%88%B6" title="數位控制">數位控制</a></li></ul>
+<div class="mw-heading mw-heading2"><h2 id="外部链接"><span id=".E5.A4.96.E9.83.A8.E9.93.BE.E6.8E.A5"></span>外部链接</h2></div>
+<div class="navbox-styles"><style data-mw-deduplicate="TemplateStyles:r95173189">.mw-parser-output .hlist dl,.mw-parser-output .hlist ol,.mw-parser-output .hlist ul{margin:0;padding:0}.mw-parser-output .hlist dd,.mw-parser-output .hlist dt,.mw-parser-output .hlist li{margin:0;display:inline}.mw-parser-output .hlist.inline,.mw-parser-output .hlist.inline dl,.mw-parser-output .hlist.inline ol,.mw-parser-output .hlist.inline ul,.mw-parser-output .hlist dl dl,.mw-parser-output .hlist dl ol,.mw-parser-output .hlist dl ul,.mw-parser-output .hlist ol dl,.mw-parser-output .hlist ol ol,.mw-parser-output .hlist ol ul,.mw-parser-output .hlist ul dl,.mw-parser-output .hlist ul ol,.mw-parser-output .hlist ul ul{display:inline}.mw-parser-output .hlist .mw-empty-li{display:none}.mw-parser-output .hlist dt::after{content:" :"}.mw-parser-output .hlist dd::after,.mw-parser-output .hlist li::after{content:" · ";font-weight:bold}.mw-parser-output .hlist-pipe dd::after,.mw-parser-output .hlist-pipe li::after{content:" | ";font-weight:normal}.mw-parser-output .hlist-hyphen dd::after,.mw-parser-output .hlist-hyphen li::after{content:" - ";font-weight:normal}.mw-parser-output .hlist-comma dd::after,.mw-parser-output .hlist-comma li::after{content:"、";font-weight:normal}.mw-parser-output .hlist dd:last-child::after,.mw-parser-output .hlist dt:last-child::after,.mw-parser-output .hlist li:last-child::after{content:none}.mw-parser-output .hlist dd dd:first-child::before,.mw-parser-output .hlist dd dt:first-child::before,.mw-parser-output .hlist dd li:first-child::before,.mw-parser-output .hlist dt dd:first-child::before,.mw-parser-output .hlist dt dt:first-child::before,.mw-parser-output .hlist dt li:first-child::before,.mw-parser-output .hlist li dd:first-child::before,.mw-parser-output .hlist li dt:first-child::before,.mw-parser-output .hlist li li:first-child::before{content:"（";font-weight:normal}.mw-parser-output .hlist dd dd:last-child::after,.mw-parser-output .hlist dd dt:last-child::after,.mw-parser-output .hlist dd li:last-child::after,.mw-parser-output .hlist dt dd:last-child::after,.mw-parser-output .hlist dt dt:last-child::after,.mw-parser-output .hlist dt li:last-child::after,.mw-parser-output .hlist li dd:last-child::after,.mw-parser-output .hlist li dt:last-child::after,.mw-parser-output .hlist li li:last-child::after{content:"）";font-weight:normal}.mw-parser-output .hlist ol{counter-reset:listitem}.mw-parser-output .hlist ol>li{counter-increment:listitem}.mw-parser-output .hlist ol>li::before{content:" "counter(listitem)"\a0 "}.mw-parser-output .hlist dd ol>li:first-child::before,.mw-parser-output .hlist dt ol>li:first-child::before,.mw-parser-output .hlist li ol>li:first-child::before{content:"（"counter(listitem)"\a0 "}.mw-parser-output ul.cslist,.mw-parser-output ul.sslist{margin:0;padding:0;display:inline-block;list-style:none}.mw-parser-output .cslist li,.mw-parser-output .sslist li{margin:0;display:inline-block}.mw-parser-output .cslist li::after{content:"，"}.mw-parser-output .sslist li::after{content:"；"}.mw-parser-output .cslist li:last-child::after,.mw-parser-output .sslist li:last-child::after{content:none}</style><style data-mw-deduplicate="TemplateStyles:r95173153">.mw-parser-output .navbox{box-sizing:border-box;border:1px solid #a2a9b1;width:100%;clear:both;font-size:88%;text-align:center;padding:1px;margin:1em auto 0}.mw-parser-output .navbox .navbox{margin-top:0}.mw-parser-output .navbox+.navbox-styles+.navbox,.mw-parser-output .navbox+span.mw-empty-elt+.navbox-styles+.navbox{margin-top:-1px}.mw-parser-output .navbox-inner,.mw-parser-output .navbox-subgroup{width:100%}.mw-parser-output .navbox-group,.mw-parser-output .navbox-title,.mw-parser-output .navbox-abovebelow{text-align:center;padding-left:1em;padding-right:1em}.mw-parser-output .navbox-group{white-space:nowrap;text-align:right}.mw-parser-output .navbox,.mw-parser-output .navbox-subgroup{background-color:#fdfdfd;color:inherit}.mw-parser-output .navbox-list{border-color:#fdfdfd}.mw-parser-output .navbox-list-with-group{text-align:left;border-left-width:2px;border-left-style:solid}.mw-parser-output tr+tr>.navbox-abovebelow,.mw-parser-output tr+tr>.navbox-group,.mw-parser-output tr+tr>.navbox-image,.mw-parser-output tr+tr>.navbox-list{border-top:2px solid #fdfdfd}.mw-parser-output .navbox-title{background-color:#ccf;color:inherit;position:relative}.mw-parser-output .navbox-abovebelow,.mw-parser-output .navbox-group,.mw-parser-output .navbox-subgroup .navbox-title{background-color:#ddf;color:inherit}.mw-parser-output .navbox-subgroup .navbox-group,.mw-parser-output .navbox-subgroup .navbox-abovebelow{background-color:#e6e6ff;color:inherit}.mw-parser-output .navbox-even{background-color:#f7f7f7;color:inherit}.mw-parser-output .navbox-odd{background-color:transparent;color:inherit}.mw-parser-output .navbox .hlist td dl,.mw-parser-output .navbox .hlist td ol,.mw-parser-output .navbox .hlist td ul,.mw-parser-output .navbox td.hlist dl,.mw-parser-output .navbox td.hlist ol,.mw-parser-output .navbox td.hlist ul{padding:0.125em 0}.mw-parser-output .navbox .navbar{display:block;font-size:100%}.mw-parser-output .navbox-title .navbar{float:left;text-align:left;margin-right:0.5em;width:auto;padding-left:0.2em;padding-right:0.2em;position:absolute;left:1em}.mw-parser-output .navbox .mw-collapsible-toggle{margin-left:0.5em;position:absolute;right:1em}body.skin--responsive .mw-parser-output .navbox-image img{max-width:none!important}@media print{body.ns-0 .mw-parser-output .navbox{display:none!important}}</style></div><div role="navigation" class="navbox authority-control" aria-label="Navbox479" style="padding:3px"><table class="nowraplinks hlist navbox-inner" style="border-spacing:0;background:transparent;color:inherit"><tbody><tr><th scope="row" class="navbox-group" style="width:1%"><a href="/wiki/Help:%E8%A7%84%E8%8C%83%E6%8E%A7%E5%88%B6" title="Help:规范控制">规范控制数据库</a>：各地 <span class="mw-valign-text-top noprint" typeof="mw:File/Frameless"><a href="https://www.wikidata.org/wiki/Q333746#identifiers" title="編輯維基數據鏈接"><img alt="編輯維基數據鏈接" src="//thumb.wikimedia.org/wikipedia/commons/thumb/8/8a/OOjs_UI_icon_edit-ltr-progressive.svg/20px-OOjs_UI_icon_edit-ltr-progressive.svg.png?utm_source=zh.wikipedia.org&amp;utm_campaign=parser&amp;utm_content=thumbnail" decoding="async" loading="lazy" width="10" height="10" class="mw-file-element" data-file-width="20" data-file-height="20" /></a></span></th><td class="navbox-list-with-group navbox-list navbox-odd" style="width:100%;padding:0px"><div style="padding:0em 0.25em">
+<ul><li><span class="uid"><a rel="nofollow" class="external text" href="https://d-nb.info/gnd/1124490299">德国</a></span></li></ul>
+</div></td></tr></tbody></table></div>
+<!-- 
+NewPP limit report
+Parsed by mw‐web.codfw.main‐867d5866d8‐czrqq
+Cached time: 20261025153548
+Cache expiry: 2592000
+Reduced expiry: false
+Complications: [prevent‐selective‐update, show‐toc]
+CPU time usage: 0.271 seconds
+Real time usage: 0.340 seconds
+Preprocessor visited node count: 119/1000000
+Revision size: 3376/2097152 bytes
+Post‐expand include size: 220416/2097152 bytes
+Template argument size: 0/2097152 bytes
+Highest expansion depth: 5/100
+Expensive parser function count: 2/500
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 5666/5000000 bytes
+Lua time usage: 0.136/10.000 seconds
+Lua memory usage: 4040713/52428800 bytes
+Number of Wikibase entities loaded: 1/500
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%  179.031      1 -total
+ 54.72%   97.959      1 Template:Authority_control
+ 44.54%   79.734      1 Template:NoteTA
+-->
+
+<!-- Render ID c0446bde-d089-11f1-be77-e94d8edf85e8 -->
+
+<!-- Saved in parser cache with key zhwiki:pcache:327816:|#|:idhash:canonical!zh and timestamp 20261025153548 and revision id 94707955. Rendering was triggered because: page_view
+ -->
+</div>

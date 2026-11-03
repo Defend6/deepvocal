@@ -1,0 +1,78 @@
+{
+  "checked_on": "2026-11-03",
+  "purpose": "verify primary technical mechanisms; numeric budgets are project choices",
+  "sources": [
+    {
+      "id": "langgraph-durable",
+      "title": "LangGraph durable execution",
+      "url": "https://docs.langchain.com/oss/python/langgraph/durable-execution",
+      "application": "持久恢复需要对副作用和可重放逻辑显式设计",
+      "retrieval_status": "FETCHED",
+      "http_status": 200,
+      "final_url": "https://docs.langchain.com/oss/python/langgraph/persistence",
+      "response_sha256": "e8770ffd14001f00a6aff2985eeb4716c507e840965e631ddbfcf96779ceb69c",
+      "response_bytes": 533106,
+      "mechanism_terms_found": {
+        "idempotent": false,
+        "side effects": false
+      },
+      "full_page_redistributed": false
+    },
+    {
+      "id": "langgraph-interrupt",
+      "title": "LangGraph interrupts",
+      "url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+      "application": "恢复与节点重执行、持久checkpointer；不能假定等待前代码只跑一次",
+      "retrieval_status": "FETCHED",
+      "http_status": 200,
+      "final_url": "https://docs.langchain.com/oss/python/langgraph/interrupts",
+      "response_sha256": "23aaf5c87f5aeea0ad7743ec0e02b5ea136cdfb38ac9be820ad8895246e1a982",
+      "response_bytes": 1313733,
+      "mechanism_terms_found": {
+        "restart": true,
+        "node": true
+      },
+      "full_page_redistributed": false
+    },
+    {
+      "id": "postgres-constraints",
+      "title": "PostgreSQL constraints",
+      "url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+      "application": "CHECK/UNIQUE/FK与空值语义；跨行语义需事务设计",
+      "retrieval_status": "FETCHED",
+      "http_status": 200,
+      "final_url": "https://www.postgresql.org/docs/current/ddl-constraints.html",
+      "response_sha256": "158d45031e03733f19301214090b34af9c48ee79dc23134c2251fb7f33837bed",
+      "response_bytes": 46639,
+      "mechanism_terms_found": {
+        "CHECK": true,
+        "foreign key": true
+      },
+      "full_page_redistributed": false
+    },
+    {
+      "id": "docker-readiness",
+      "title": "Docker Compose startup order",
+      "url": "https://docs.docker.com/compose/how-tos/startup-order/",
+      "application": "启动顺序与健康就绪分别处理",
+      "retrieval_status": "FETCHED",
+      "http_status": 200,
+      "final_url": "https://docs.docker.com/compose/how-tos/startup-order/",
+      "response_sha256": "0b74e9b831de28cdf24b5fe071a96a0e4808a27dbfdeadd727f54aeda33e8bf5",
+      "response_bytes": 534635,
+      "mechanism_terms_found": {
+        "service_healthy": true,
+        "ready": true
+      },
+      "full_page_redistributed": false
+    },
+    {
+      "id": "milvus-filter",
+      "title": "Milvus filtered search",
+      "url": "https://milvus.io/docs/filtered-search.md",
+      "application": "检索阶段过滤，不用事后隐藏替代范围约束",
+      "retrieval_status": "UNAVAILABLE",
+      "error": "HTTP Error 302: The HTTP server returned a redirect error that would lead to an infinite loop.\nThe last 30x error message was:\nMoved Temporarily"
+    }
+  ]
+}

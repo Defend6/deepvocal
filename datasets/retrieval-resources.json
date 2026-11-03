@@ -1,0 +1,460 @@
+{
+  "policy": "frozen files; changed hash requires version review, no automatic agreement acceptance",
+  "resources": [
+    {
+      "path": "raw/candidates/gt-license.md",
+      "url": "https://raw.githubusercontent.com/GTSinger/GTSinger/main/dataset_license.md",
+      "bytes": 1463,
+      "sha256": "3f230608aebb15ce29762809690142e6284940924e9e34b938c5afb7ea4806f0",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/gt-readme.md",
+      "url": "https://raw.githubusercontent.com/GTSinger/GTSinger/main/README.md",
+      "bytes": 10540,
+      "sha256": "1ce5b3c3fcd326b17d2a3cdc69350f727eda0fc71f9ae52aebaffdead42c6a6a",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/GTSinger.json",
+      "url": "https://api.github.com/repos/GTSinger/GTSinger",
+      "bytes": 5985,
+      "sha256": "0201ea54467b50dce1c7d10300ddee2fb29a005cb6392a53a2d61ef6e95d5348",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/m4-license.md",
+      "url": "https://raw.githubusercontent.com/M4Singer/M4Singer/master/dataset_license.md",
+      "bytes": 559,
+      "sha256": "f7e0aba835b10591de35cd7de5cee6fd9650803616b34a7b01740b922d982fd3",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/m4-readme.md",
+      "url": "https://raw.githubusercontent.com/M4Singer/M4Singer/master/README.md",
+      "bytes": 1394,
+      "sha256": "0609a70db3410be6aab148dc216a44c27dc0c76b3e5e47c3418011d60a381cc0",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/M4Singer.json",
+      "url": "https://api.github.com/repos/M4Singer/M4Singer",
+      "bytes": 5559,
+      "sha256": "e1e5efd3ef88e6929c7d8e8779c773952027d8f1e5d328137d174fff715130f3",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/opensinger-paper.html.txt",
+      "url": "https://arxiv.org/abs/2110.04754",
+      "bytes": 42120,
+      "sha256": "9a86c3038a63295bc5aecae8ff511ef359e326f41b1adca7fd8a20b17e79c545",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/candidates/singmos-readme.md",
+      "url": "https://raw.githubusercontent.com/South-Twilight/SingMOS/main/README.md",
+      "bytes": 5014,
+      "sha256": "e9e5ce54f1dcb9709a5231862b1ceb17657d7d671708d3d798512860f8703f51",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/LICENSE.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/README.md",
+      "bytes": 9046,
+      "sha256": "e747f52bad805fc2044fda17d529d9d3668b5a28cad11f780286172ce5e38794",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern/lc5004731.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/01_Das_Wandern/lc5004731.mxl",
+      "bytes": 4329,
+      "sha256": "380d5fe74a98c456292565d9be8f51877fa0b34a424ebdd11471cd7f2f6001b2",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/01_Das_Wandern/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/01_Das_Wandern/README.md",
+      "bytes": 686,
+      "sha256": "6bb91671a5296e3cd5f83b2dcceb260c27646406d931caa605752dbe12f7efe7",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin/lc4982535.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/02_Wohin/lc4982535.mxl",
+      "bytes": 13426,
+      "sha256": "e6829acafa92d85e7f675c24fa44cb24f979ddf5d9240b2274389f925d249033",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/02_Wohin/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/02_Wohin/README.md",
+      "bytes": 681,
+      "sha256": "82257a115de9c217f6cf3292b5debad41122fe07d02dc001e06c0f85b487269d",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/04_Danksagung_an_den_Bach/lc4985925.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/04_Danksagung_an_den_Bach/lc4985925.mxl",
+      "bytes": 7255,
+      "sha256": "fd7085eb21f58e931a679944dbb268d59453e37a27a23ebc54a4ea9d3f2b5696",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/04_Danksagung_an_den_Bach/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/04_Danksagung_an_den_Bach/README.md",
+      "bytes": 697,
+      "sha256": "ff6e9d45464684e8c1890fbabe1fd3d7a8e561ff05cb16db8c61adeb9fcbcf56",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/06_Der_Neugierige/lc4985930.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/06_Der_Neugierige/lc4985930.mxl",
+      "bytes": 9893,
+      "sha256": "444661ac740e4a518c1202b7b2080a20fdac316b96b89ac889d72ee6e4b428e8",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/06_Der_Neugierige/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/06_Der_Neugierige/README.md",
+      "bytes": 689,
+      "sha256": "3622087b1f4fb7ef9feead6f57f9242e9e44bebc61389f7483ddc2cb61b625b9",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/07_Ungeduld/lc4985951.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/07_Ungeduld/lc4985951.mxl",
+      "bytes": 9754,
+      "sha256": "b8c3e23fe8ffa70742e562bcefe79dd0e0a3a2a380097c1f3f36253fa65776df",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/07_Ungeduld/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/07_Ungeduld/README.md",
+      "bytes": 683,
+      "sha256": "05a72b33536581ddbd9dbbb4ed7aac02b611da7c59a5d1a947d200e2f2e3697e",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/08_Morgengruß/lc5025982.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/08_Morgengru%C3%9F/lc5025982.mxl",
+      "bytes": 6734,
+      "sha256": "9341c4fbd2996c9ae028e91e87c910ba1c82118ca6269ceeed2a62128a2c51c9",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/08_Morgengruß/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/08_Morgengru%C3%9F/README.md",
+      "bytes": 686,
+      "sha256": "dcca1de5eddc9bdda4629e481b8338b78b36be34b3ce6c88597d32cab2e1f694",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/09_Des_Müllers_Blumen/lc4985932.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/09_Des_M%C3%BCllers_Blumen/lc4985932.mxl",
+      "bytes": 5126,
+      "sha256": "4336a2af945a88088e2dbff89de11df586c1d194b832604dec53599fafebe790",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/09_Des_Müllers_Blumen/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/09_Des_M%C3%BCllers_Blumen/README.md",
+      "bytes": 694,
+      "sha256": "494a95d36da261f899ca0e198d4e94e568802ecc42e65faa5b067fe3e8c152c4",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/10_Tränenregen/lc5025985.mxl",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/10_Tr%C3%A4nenregen/lc5025985.mxl",
+      "bytes": 9252,
+      "sha256": "fc67ea7901d9afe04612be75d4db6d3466169c42655151544db1d6a5057a4953",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/scores/Schubert,_Franz/Die_schöne_Müllerin,_D.795/10_Tränenregen/README.md",
+      "url": "https://raw.githubusercontent.com/OpenScore/Lieder/38c5db510224d9facdc4b08d741fc788cfb58ea8/scores/Schubert%2C_Franz/Die_sch%C3%B6ne_M%C3%BCllerin%2C_D.795/10_Tr%C3%A4nenregen/README.md",
+      "bytes": 688,
+      "sha256": "113e586c43b5f89b18e897e1c588b694152e198cf47c5cf91ff2a977ec858cc9",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/lieder/tree.json",
+      "url": "https://api.github.com/repos/OpenScore/Lieder/git/trees/38c5db510224d9facdc4b08d741fc788cfb58ea8?recursive=1",
+      "bytes": 3537438,
+      "sha256": "59c086df2ca14127f34a6df21469e18168740d034366d0a2d4ee48503e7cbe9f",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/hoarseness.html",
+      "url": "https://www.nidcd.nih.gov/health/hoarseness",
+      "bytes": 51923,
+      "sha256": "d3f96e32c18d4715f6b5eecf54d72374369389bae3c4252748577c1ea965cd19",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/how-voice-produced.html",
+      "url": "https://www.nidcd.nih.gov/health/what-is-voice-speech-language",
+      "bytes": 56603,
+      "sha256": "609ea11ac0453a295bf9ef8b8c8c874b7091a37d8348953466f21db77a7c825f",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/nidcd.html.txt",
+      "url": "https://www.nidcd.nih.gov/health/taking-care-your-voice",
+      "bytes": 51037,
+      "sha256": "9098d3cf6eec3e4c210b2a4543038d8ceee84f3172fe02f3bfbf7295c7875c5f",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/nidcd_policy.html.txt",
+      "url": "https://www.nidcd.nih.gov/policies",
+      "bytes": 38770,
+      "sha256": "cf7a7b47b019d426dca7a5becf763720bab76103d1fd72daa2c7dca1f4581e27",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/spasmodic-dysphonia.html",
+      "url": "https://www.nidcd.nih.gov/health/spasmodic-dysphonia",
+      "bytes": 52056,
+      "sha256": "7872820f1bd7b0613577fc127033ddc3bc1825007d25fdbfbf78e3c900c4cbf8",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/nidcd/voice-health.pdf",
+      "url": "https://www.nidcd.nih.gov/sites/default/files/Documents/order/taking-care-of-your-voice-pub.pdf",
+      "bytes": 2038341,
+      "sha256": "ca81c2ef72c1c42030d46d4880a57e0c628c7cd66f0852dead2971e3dac31741",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/_includes/footer.html",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/_includes/footer.html",
+      "bytes": 2588,
+      "sha256": "23dc76aa165792081d12d42b52c2b4b5239e4127fce475b5b642ef2825420c39",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/about.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/about.md",
+      "bytes": 7788,
+      "sha256": "e3a0f451a8413999f938851aee2b156457ee3d01809ada8c35942cc7f55fa1d3",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/analyzingPoetry.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/analyzingPoetry.md",
+      "bytes": 3529,
+      "sha256": "3d2121c21387c6a7628b04a9b543e01a878c8a49f7d3ac087e91d3818674eff6",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/basicNotation.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/basicNotation.md",
+      "bytes": 2380,
+      "sha256": "86bd8e5d302f3d2bbac26bde1761781cb8a5824376c037317d1972322efa95a0",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/cadenceTypes.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/cadenceTypes.md",
+      "bytes": 6464,
+      "sha256": "0ffaa77b1d0dd586423262aab5f8816155a83e5dcb01eb6585316f093ce7984f",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/cantusFirmus.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/cantusFirmus.md",
+      "bytes": 5298,
+      "sha256": "c4a03a6e327888eb0ecd518b9e9a94a437e890073378736c80add6b3798816d0",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/chromaticSolfege.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/chromaticSolfege.md",
+      "bytes": 5070,
+      "sha256": "e241f07d26085a136c74be7c786b857c57718198306240d8a8f391355228cf66",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/embellishingTones.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/embellishingTones.md",
+      "bytes": 6055,
+      "sha256": "ea2f0e5648cbfc4d491b5020df62e7bb05b0df7c8cfe3c5c36449d1628828019",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/intervals.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/intervals.md",
+      "bytes": 10531,
+      "sha256": "61fe680be48086fb61209a6cd54315b127302c5d78046652275648e383d47274",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/keySignatures.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/keySignatures.md",
+      "bytes": 3292,
+      "sha256": "2010f122164406efbd9445a6a316102c89ed8bc540fd5a83dc61a5adab30a482",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/meter.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/meter.md",
+      "bytes": 8318,
+      "sha256": "646818b037b3a4dac401d7cb60bec5eadd58827bad0f5f29dd3dfc964147878d",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/motionTypes.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/motionTypes.md",
+      "bytes": 1718,
+      "sha256": "7a7c2feb0370cb7255e1e9ad8479eb20763a778651708c88ef8dad243fa3706c",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/period.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/period.md",
+      "bytes": 3271,
+      "sha256": "b273d2d5a0f09ce80f9eed14255df99b908d40ce9ae1b2f524218c6ef48758c6",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/pitch(Class).md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/pitch%28Class%29.md",
+      "bytes": 3524,
+      "sha256": "55642b92ac2758181888c8bd8892082c0663876eacd0fee4b6daa79fbf17a8c7",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/pitches.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/pitches.md",
+      "bytes": 2403,
+      "sha256": "19a18473f3f71b032830d8d4a0c2077cb9575f5dcccda0a3cea8e7b91213d627",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/README.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/README.md",
+      "bytes": 190,
+      "sha256": "9a00749c6522fe9b95d47b8bfbd859c32a2073cb94a5e06770d18cf92f2460e5",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/rhythmicValues.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/rhythmicValues.md",
+      "bytes": 1929,
+      "sha256": "c88c41fe9132cc6f218d0c2025aab1b5d0285193917f6d768badeecb6e092b8c",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/scales.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/scales.md",
+      "bytes": 5205,
+      "sha256": "0cac4220265dad95c6ffdb08d6da50ee45728731e745928d14a5cee4d2380718",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/scales2.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/scales2.md",
+      "bytes": 7801,
+      "sha256": "b38d298ca61c8b3efdce94b076c3a3429fd809941f1b9b99f7867a725e9e92d4",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/sentence.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/sentence.md",
+      "bytes": 3970,
+      "sha256": "f2fee649650ea35741b554a74fcffb1067605a575dae1c40a3087482dd846584",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/sightSinging.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/sightSinging.md",
+      "bytes": 2127,
+      "sha256": "b6516010b7e8f9e9088b11b6ac458ff25a27dcca4926d720898ac852880ac2e0",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/syncopation.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/syncopation.md",
+      "bytes": 6682,
+      "sha256": "6ea7d4161b8170ec3b212798aefe496adc85f18c1bfaf0e1af392776abb0b79b",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/tendency.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/tendency.md",
+      "bytes": 3779,
+      "sha256": "3562d5a0857946087df91b13f29b5d292ad92b58c74908dbb3d7180c21814006",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/transposition.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/transposition.md",
+      "bytes": 2066,
+      "sha256": "481c866cd5770ac804835cc834e3a9c481d8e21f3b30b4c743717f11929cf6c7",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/tree.json",
+      "url": "https://api.github.com/repos/openmusictheory/openmusictheory.github.io/git/trees/a907aa015f7ec54b925ddb070d2d36aecd0dc705?recursive=1",
+      "bytes": 224534,
+      "sha256": "13df67a4f0c02b12cc7ad6a9eb9dff5fe2f0f7e5b1604a53007da9be245b3aee",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/omt/triads.md",
+      "url": "https://raw.githubusercontent.com/openmusictheory/openmusictheory.github.io/a907aa015f7ec54b925ddb070d2d36aecd0dc705/triads.md",
+      "bytes": 10903,
+      "sha256": "ba66f8ad518420a4ab2ca46f8aa96ad27854fac3f75ca6d938981ea05105f14b",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocadito/vocadito.json",
+      "url": "https://zenodo.org/api/records/5578807",
+      "bytes": 4508,
+      "sha256": "e9434e24be2181a925ee64e653bd465bfed544089147023ccd5da518db71266b",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocadito/vocadito.zip",
+      "url": "https://zenodo.org/api/records/5578807/files/vocadito.zip/content",
+      "bytes": 58492257,
+      "sha256": "e0d6b99d3f9c594afe5ae5c4d7bdacebe569e53b809e90b89d1c771c4f9990e3",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocal-textbook/book.epub",
+      "url": "https://www.fulcrum.org/ebooks/8w32r889h/download?locale=en",
+      "bytes": 1378708,
+      "sha256": "dd0260d580bd797f1d907a270be8cf836400a1648e604b5064a23053d7f16fe9",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocal-textbook/book.pdf",
+      "url": "https://www.fulcrum.org/ebooks/v118rj19z/download?locale=en",
+      "bytes": 1009538,
+      "sha256": "5c74cae0585a50af4c7f44d6a7949fa601a359d741c96db602fce14060f20bfc",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocal-textbook/vocal_fulcrum.html.txt",
+      "url": "https://www.fulcrum.org/concern/monographs/08612s169",
+      "bytes": 58327,
+      "sha256": "a3365548ab0eac96214131f1a2c64be2c43fba3b625186bc7e70a4762fd0aa81",
+      "retrieved_on": "2026-11-03"
+    },
+    {
+      "path": "raw/vocalset/vocalset.json",
+      "url": "https://zenodo.org/api/records/1442513",
+      "bytes": 5712,
+      "sha256": "23046ed524bf3e76c137562f4c95f464342982028638c6915ff0a92a8e8eaf76",
+      "retrieved_on": "2026-11-03"
+    }
+  ]
+}

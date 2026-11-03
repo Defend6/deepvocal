@@ -1,0 +1,287 @@
+{
+  "retrieved_at": "2026-11-03T14:52:08.690823+00:00",
+  "pages": [
+    {
+      "requested_title": "声乐",
+      "status": "downloaded",
+      "page_id": 285372,
+      "title": "聲樂",
+      "revision_id": 66243210,
+      "timestamp": "2021-06-24T10:53:40Z",
+      "url": "https://zh.wikipedia.org/wiki/%E8%81%B2%E6%A8%82",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=66243210",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=285372&action=history",
+      "raw_dir": "raw/zhwiki/285372"
+    },
+    {
+      "requested_title": "歌唱",
+      "status": "downloaded",
+      "page_id": 630940,
+      "title": "歌唱",
+      "revision_id": 95196442,
+      "timestamp": "2026-10-20T22:53:27Z",
+      "url": "https://zh.wikipedia.org/wiki/%E6%AD%8C%E5%94%B1",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=95196442",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=630940&action=history",
+      "raw_dir": "raw/zhwiki/630940"
+    },
+    {
+      "requested_title": "音域",
+      "status": "downloaded",
+      "page_id": 20336,
+      "title": "音域",
+      "revision_id": 94305005,
+      "timestamp": "2026-09-11T21:02:14Z",
+      "url": "https://zh.wikipedia.org/wiki/%E9%9F%B3%E5%9F%9F",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=94305005",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=20336&action=history",
+      "raw_dir": "raw/zhwiki/20336"
+    },
+    {
+      "requested_title": "音区",
+      "status": "downloaded",
+      "page_id": 3813113,
+      "title": "音區",
+      "revision_id": 85981212,
+      "timestamp": "2025-02-05T18:22:32Z",
+      "url": "https://zh.wikipedia.org/wiki/%E9%9F%B3%E5%8D%80",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=85981212",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=3813113&action=history",
+      "raw_dir": "raw/zhwiki/3813113"
+    },
+    {
+      "requested_title": "假声",
+      "status": "downloaded",
+      "page_id": 517782,
+      "title": "假聲",
+      "revision_id": 95000745,
+      "timestamp": "2026-10-13T11:03:04Z",
+      "url": "https://zh.wikipedia.org/wiki/%E5%81%87%E8%81%B2",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=95000745",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=517782&action=history",
+      "raw_dir": "raw/zhwiki/517782"
+    },
+    {
+      "requested_title": "头声",
+      "status": "missing"
+    },
+    {
+      "requested_title": "胸声",
+      "status": "missing"
+    },
+    {
+      "requested_title": "声部",
+      "status": "downloaded",
+      "page_id": 726896,
+      "title": "声部",
+      "revision_id": 94683104,
+      "timestamp": "2026-10-01T06:53:48Z",
+      "url": "https://zh.wikipedia.org/wiki/%E5%A3%B0%E9%83%A8",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=94683104",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=726896&action=history",
+      "raw_dir": "raw/zhwiki/726896"
+    },
+    {
+      "requested_title": "视唱练耳",
+      "status": "downloaded",
+      "page_id": 767740,
+      "title": "视唱法",
+      "revision_id": 93893254,
+      "timestamp": "2026-08-14T15:49:28Z",
+      "url": "https://zh.wikipedia.org/wiki/%E8%A7%86%E5%94%B1%E6%B3%95",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=93893254",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=767740&action=history",
+      "raw_dir": "raw/zhwiki/767740"
+    },
+    {
+      "requested_title": "唱名法",
+      "status": "disambiguation",
+      "page_id": 9578748,
+      "title": "唱名"
+    },
+    {
+      "requested_title": "首调唱名法",
+      "status": "missing"
+    },
+    {
+      "requested_title": "固定调唱名法",
+      "status": "missing"
+    },
+    {
+      "requested_title": "音高",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "音准",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "音程",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "半音",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "全音",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "音阶",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "调号",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "节奏",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "节拍",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "拍号",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "切分音",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "十二平均律",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "基频",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "谐波",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "音色",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "响度",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "分贝",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "削波",
+      "status": "failed",
+      "error": "HTTP Error 429: Too Many Requests"
+    },
+    {
+      "requested_title": "采样率",
+      "status": "downloaded",
+      "page_id": 327816,
+      "title": "采样率",
+      "revision_id": 94707955,
+      "timestamp": "2026-10-02T11:37:10Z",
+      "url": "https://zh.wikipedia.org/wiki/%E9%87%87%E6%A0%B7%E7%8E%87",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=94707955",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=327816&action=history",
+      "raw_dir": "raw/zhwiki/327816"
+    },
+    {
+      "requested_title": "混响",
+      "status": "downloaded",
+      "page_id": 3381308,
+      "title": "混響",
+      "revision_id": 94839054,
+      "timestamp": "2026-10-08T02:18:27Z",
+      "url": "https://zh.wikipedia.org/wiki/%E6%B7%B7%E9%9F%BF",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=94839054",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=3381308&action=history",
+      "raw_dir": "raw/zhwiki/3381308"
+    },
+    {
+      "requested_title": "声带",
+      "status": "downloaded",
+      "page_id": 620542,
+      "title": "声带",
+      "revision_id": 94695856,
+      "timestamp": "2026-10-01T21:28:26Z",
+      "url": "https://zh.wikipedia.org/wiki/%E5%A3%B0%E5%B8%A6",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=94695856",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=620542&action=history",
+      "raw_dir": "raw/zhwiki/620542"
+    },
+    {
+      "requested_title": "共振峰",
+      "status": "downloaded",
+      "page_id": 1014036,
+      "title": "共振峰",
+      "revision_id": 93673171,
+      "timestamp": "2026-07-28T00:36:29Z",
+      "url": "https://zh.wikipedia.org/wiki/%E5%85%B1%E6%8C%AF%E5%B3%B0",
+      "permalink": "https://zh.wikipedia.org/w/index.php?oldid=93673171",
+      "history_url": "https://zh.wikipedia.org/w/index.php?curid=1014036&action=history",
+      "raw_dir": "raw/zhwiki/1014036"
+    },
+    {
+      "requested_title": "颤音",
+      "status": "disambiguation",
+      "page_id": 118711,
+      "title": "顫音"
+    }
+  ],
+  "evidence": {
+    "siteinfo": {
+      "url": "https://zh.wikipedia.org/w/api.php?action=query&format=json&meta=siteinfo&siprop=rightsinfo|general",
+      "file": "raw/siteinfo.txt",
+      "sha256": "1787123af07687669f5b9e315cb5a5433dc8406d35bad371d3bfa5d94d0bdbae",
+      "status": "downloaded"
+    },
+    "terms": {
+      "url": "https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use",
+      "file": "raw/terms.txt",
+      "sha256": "cfe487ee5dee94bf3de771eb3180f57d66c84694d38dec174b371843cf2311b2",
+      "status": "downloaded"
+    },
+    "cc_by_sa_4": {
+      "url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode.en",
+      "file": "raw/cc_by_sa_4.txt",
+      "sha256": "47c0a954c88d793bdefe92fb007ae3c038fb3807f1a27083433d01aa7542c0d8",
+      "status": "downloaded"
+    },
+    "opencpop_readme": {
+      "url": "https://raw.githubusercontent.com/wenet-e2e/opencpop/master/README.md",
+      "file": "raw/opencpop_readme.txt",
+      "sha256": "0a2f8ecb0b2f7e681de2c1152628039ff749f0620d6e91fa1bf40e560d977cf3",
+      "status": "downloaded"
+    },
+    "opencpop_site": {
+      "url": "https://wenet-e2e.github.io/opencpop/",
+      "file": "raw/opencpop_site.txt",
+      "sha256": "b1c4e216274583cd228f1c773256e6e1d427daf9e9d17eca3329412ac9ec4165",
+      "status": "downloaded"
+    }
+  }
+}

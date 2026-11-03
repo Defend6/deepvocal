@@ -1,0 +1,80 @@
+{{noteTA
+|T=zh-hant:音區; zh-hans:音区
+|G1=register
+}}
+
+'''音區'''（{{lang|en|register}}、音域）或稱'''音高音區'''（{{lang|en|pitch register}}）在[[音位學]]中表示在一些語言裡的[[音節]][[韻律 (語言學)|韻律]]特徵，比如[[聲調]]，元音[[發聲態]]，[[喉塞化]]，或依賴於對方音調的類似功能。[[緬甸語]]、[[越南語]]、[[吴语]]和[[祖鲁语]]裡均有如此的音區系統。
+
+==範例==
+===緬甸語===
+缅甸语中，声调差异与元音发声态有关，因此两者都不是独立存在的。缅甸语有3个音区，传统上任务是4个“声调”中的3个（第四个实际上不是音区，而类似于[[中古汉语]]的入声）。Jones (1986)认为这些差异是“由调域和音区交叉产生的……显然，缅甸语不像其他语言那样具有独立的声调，因此需要一个调域的概念。”<ref>{{cite book |last1=Jones |first1=Robert B. |editor1-last=McCoy |editor1-first=John |editor2-last=Light |editor2-first=Timothy |title=Contributions to Sino-Tibetan studies |date=1986 |publisher=E.J. Brill |location=Leiden |isbn=9789004078505 |url=https://books.google.com/books?id=jdYUAAAAIAAJ&q=%22Clearly+Burmese+is+not+tonal+in+the+same+sense%22&pg=PA136 |ref=Jones1986 |access-date=2023-10-16 |archive-date=2022-11-14 |archive-url=https://web.archive.org/web/20221114030913/https://books.google.com/books?id=jdYUAAAAIAAJ&q=%22Clearly+Burmese+is+not+tonal+in+the+same+sense%22&pg=PA136 |dead-url=no }}</ref>
+
+{| class="wikitable"
+|+ 緬甸音高發聲態音區<ref>James Matisoff, 2001. ''Prosodic Diffusibility in South-East Asia,'' pp. 309-310. In Aleksandra Aikhenvald and Robert Dixon, ''Areal Diffusion and Genetic Inheritance,'' OUP. </ref>
+|-
+! 音區
+! 發聲態
+! 音長
+! 音高
+! 範例
+! 註釋(中文)
+|-
+| 低
+| 模式声
+| 長
+| 低
+| {{IPA|[làː]}}
+| '來'
+|-
+| 高
+| [[氣聲]]
+| 長
+| 高；音末下降
+| {{IPA|[lá̤ː]}} ~ {{IPA|[lâ̤ː]}}
+| '騾子'
+|-
+| 緊喉
+| [[嘎裂声]]
+| 中
+| 高
+| {{IPA|[lá̰ˀ]}}
+| '月亮'
+|-
+| 末短
+| 最末[[聲門塞音]]
+| 短
+| 高
+| {{IPA|[lăʔ]}}
+| '新鮮'
+|}
+
+===越南語===
+同樣，在一些[[越南語]]的聲調上在"音高"（pitch）有很大程度上的區分。比如，越南北部跌声异于锐声，原因是元音上的聲門調之顯現；然而，重声和玄声的差别主要在短[[嘎裂声]]元音與長[[氣聲]]元音的區別。
+
+===高棉語===
+[[高棉语]]有时也认为存在音区系统，高棉语因此被称为“严格音区语言”，因为声调和发声态都可认为是同位异音：若忽略它们，则对立可承载于[[双元音]]和[[元音长度]]上。
+===亞洲語言之外===
+亚洲语言之外，有音区的语言例如[[拉脱维亚语]]，其标准语所依据的中部方言中，重读长元音一般带3种[[音高重音]]之一，分别是升调、降调与“破调”。最后一种在实现上不是靠音高，而是靠喉塞化，类似于越南语跌声。
+
+==參見==
+*{{link-en|緊嗓音|glottalization}}（glottalization/[[緊喉音]]/嘎吱聲/聲門沙音/緊喉嗓音/嗆氣聲/脈衝發聲）
+*[[發聲態]]（phonation/發聲）
+*{{link-en|喉音化|glottalization|喉化音}}（glottalization/喉音化）
+*{{link-en|常態帶聲|Modal Voice}}（Modal voice/常態帶聲-俗稱「真聲」）
+*[[假聲]]
+*[[哨音]]
+*{{link-en|語言韻律|Prosody (linguistics)}}（Prosody）
+*[[氣聲]]（Breathy voice/Murmured voice/氣息聲）
+
+==註釋==
+{{Reflist}}
+
+==參考文獻==
+{{refbegin}}
+*Robert Jones, 1986. Pitch register languages, pp 135-136, in John McCoy & Timothy Light eds., Contributions to Sino-Tibetan Studies
+{{refend}}
+{{-}}
+{{Suprasegmentals}}
+
+[[Category:發聲態]]
+[[Category:聲調語言]]

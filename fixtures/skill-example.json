@@ -1,0 +1,48 @@
+{
+  "skill_id": "gentle-practice-plan",
+  "name": "基础练习计划",
+  "version": "0.1.0",
+  "description": "演示 Skill 清单，不是已发布能力",
+  "triggers": [
+    "明确请求低强度练习计划"
+  ],
+  "allowed_agents": [
+    "planning"
+  ],
+  "required_tools": [
+    "knowledge.retrieve"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "minutes": {
+        "type": "integer",
+        "minimum": 5,
+        "maximum": 120
+      }
+    },
+    "required": [
+      "minutes"
+    ],
+    "additionalProperties": false
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": [
+      "items"
+    ],
+    "additionalProperties": false
+  },
+  "risk_level": "low",
+  "status": "candidate",
+  "content_hash": "8306028834c216fde208f3d9cb967a90bf64d10f4e060e27e632cb78d5339df4"
+}

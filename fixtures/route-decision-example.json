@@ -1,0 +1,11 @@
+{
+  "decision": "route",
+  "primary_intent": "assessment",
+  "requested_intents": [
+    "assessment",
+    "planning"
+  ],
+  "confidence": 0.9,
+  "missing_fields": [],
+  "reason_code": "MIXED_REQUEST"
+}

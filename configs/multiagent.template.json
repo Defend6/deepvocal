@@ -1,0 +1,79 @@
+{
+  "version": "1.4",
+  "status": "DESIGN_ONLY",
+  "framework": "LangGraph",
+  "supervisor": "SupervisorGraph",
+  "specialist_count": 4,
+  "agents": {
+    "knowledge": {
+      "subgraph": "VocalKnowledgeGraph",
+      "tools": [
+        "knowledge.retrieve"
+      ],
+      "prompt_version": null,
+      "output_schema_revision": null
+    },
+    "assessment": {
+      "subgraph": "SongAssessmentGraph",
+      "tools": [
+        "audio.inspect",
+        "assessment.submit",
+        "assessment.get_report"
+      ],
+      "prompt_version": null,
+      "output_schema_revision": null
+    },
+    "planning": {
+      "subgraph": "PracticePlanningGraph",
+      "tools": [
+        "reports.read",
+        "plans.create",
+        "plans.update",
+        "knowledge.retrieve"
+      ],
+      "prompt_version": null,
+      "output_schema_revision": null
+    },
+    "singing": {
+      "subgraph": "AISingingGraph",
+      "tools": [
+        "singing.capabilities"
+      ],
+      "prompt_version": null,
+      "output_schema_revision": null,
+      "status": "INTERFACE_ONLY_DISABLED"
+    }
+  },
+  "capability_mapping": {
+    "vocal_theory": "knowledge",
+    "recording_diagnosis": "assessment",
+    "full_song_assessment": "assessment",
+    "practice_planning": "planning",
+    "personalized_singing": "singing"
+  },
+  "routing_priority": [
+    "validated_ui_action",
+    "validated_resource_rule",
+    "structured_intent_classifier",
+    "clarify"
+  ],
+  "chat_creates_sensitive_jobs": false,
+  "max_specialist_steps": 4,
+  "max_handoffs": 2,
+  "handoff_allowlist": [
+    [
+      "knowledge",
+      "planning"
+    ],
+    [
+      "assessment",
+      "planning"
+    ]
+  ],
+  "singing_to_assessment": "WAIT_USER_INPUT_REQUIRES_NEW_USER_RECORDING",
+  "singing_enabled": false,
+  "max_tool_attempts": 12,
+  "max_business_steps": 24,
+  "max_workflow_tool_attempts": 24,
+  "max_workflow_resumes": 8
+}

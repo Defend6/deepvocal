@@ -1,0 +1,730 @@
+{
+  "scope": "SYNTHETIC_SCHEMA_CASES_NOT_APPLICATION_TESTS",
+  "cases": [
+    {
+      "id": "free-valid",
+      "schema": "AssessmentRequest",
+      "expected_valid": true,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "free_singing",
+        "acappella_confirmed": true
+      }
+    },
+    {
+      "id": "no-acappella",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "free_singing",
+        "acappella_confirmed": false
+      }
+    },
+    {
+      "id": "reference-with-none",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "free_singing",
+        "acappella_confirmed": true,
+        "reference_asset_id": "12345678-1234-4234-8234-123456789abc"
+      }
+    },
+    {
+      "id": "song-without-reference",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "reference_song",
+        "acappella_confirmed": true
+      }
+    },
+    {
+      "id": "song-valid",
+      "schema": "AssessmentRequest",
+      "expected_valid": true,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "midi",
+        "task_kind": "reference_song",
+        "acappella_confirmed": true,
+        "reference_asset_id": "12345678-1234-4234-8234-123456789abc"
+      }
+    },
+    {
+      "id": "song-reference-missing",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "midi",
+        "task_kind": "reference_song",
+        "acappella_confirmed": true
+      }
+    },
+    {
+      "id": "midi-as-free",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "midi",
+        "task_kind": "free_singing",
+        "acappella_confirmed": true,
+        "reference_asset_id": "12345678-1234-4234-8234-123456789abc"
+      }
+    },
+    {
+      "id": "tone-missing-target",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "long_tone",
+        "acappella_confirmed": true
+      }
+    },
+    {
+      "id": "tone-valid",
+      "schema": "AssessmentRequest",
+      "expected_valid": true,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "long_tone",
+        "acappella_confirmed": true,
+        "goal_duration_ms": 5000
+      }
+    },
+    {
+      "id": "tone-too-short",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "long_tone",
+        "acappella_confirmed": true,
+        "goal_duration_ms": 1000
+      }
+    },
+    {
+      "id": "free-with-tone-target",
+      "schema": "AssessmentRequest",
+      "expected_valid": false,
+      "value": {
+        "asset_id": "12345678-1234-4234-8234-123456789abc",
+        "mode": "short",
+        "reference_kind": "none",
+        "task_kind": "free_singing",
+        "acappella_confirmed": true,
+        "goal_duration_ms": 5000
+      }
+    },
+    {
+      "id": "metric-null-valid",
+      "schema": "Metric",
+      "expected_valid": true,
+      "value": {
+        "name": "pitch",
+        "value": null,
+        "unit": "cents",
+        "available": false,
+        "unavailable_reason": "REFERENCE_REQUIRED",
+        "algorithm_version": "synthetic-v1"
+      }
+    },
+    {
+      "id": "metric-null-as-zero",
+      "schema": "Metric",
+      "expected_valid": false,
+      "value": {
+        "name": "pitch",
+        "value": 0,
+        "unit": "cents",
+        "available": false,
+        "unavailable_reason": "REFERENCE_REQUIRED",
+        "algorithm_version": "synthetic-v1"
+      }
+    },
+    {
+      "id": "metric-no-reason",
+      "schema": "Metric",
+      "expected_valid": false,
+      "value": {
+        "name": "pitch",
+        "value": null,
+        "unit": "cents",
+        "available": false,
+        "unavailable_reason": "",
+        "algorithm_version": "synthetic-v1"
+      }
+    },
+    {
+      "id": "metric-number-valid",
+      "schema": "Metric",
+      "expected_valid": true,
+      "value": {
+        "name": "pitch",
+        "value": 50,
+        "unit": "cents",
+        "available": true,
+        "unavailable_reason": null,
+        "algorithm_version": "synthetic-v1"
+      }
+    },
+    {
+      "id": "metric-available-null",
+      "schema": "Metric",
+      "expected_valid": false,
+      "value": {
+        "name": "pitch",
+        "value": null,
+        "unit": "cents",
+        "available": true,
+        "unavailable_reason": null,
+        "algorithm_version": "synthetic-v1"
+      }
+    },
+    {
+      "id": "free-score-unavailable",
+      "schema": "ScoreBundle",
+      "expected_valid": true,
+      "value": {
+        "profile": "free_singing",
+        "ruleset_version": "engineering-v1",
+        "available": false,
+        "total": null,
+        "unavailable_reason": "REFERENCE_OR_DEFINED_TASK_REQUIRED",
+        "dimensions": [],
+        "coverage": null,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "free-score-invented",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "free_singing",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 90,
+        "unavailable_reason": null,
+        "dimensions": [],
+        "coverage": null,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "reference-score-valid",
+      "schema": "ScoreBundle",
+      "expected_valid": true,
+      "value": {
+        "profile": "reference_song",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 69.3,
+        "unavailable_reason": null,
+        "dimensions": [
+          {
+            "name": "pitch",
+            "value": 75,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          },
+          {
+            "name": "rhythm",
+            "value": 80,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          }
+        ],
+        "coverage": 0.9,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "reference-no-dims",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "reference_song",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 69.3,
+        "unavailable_reason": null,
+        "dimensions": [],
+        "coverage": 0.9,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "reference-no-rhythm",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "reference_song",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 69.3,
+        "unavailable_reason": null,
+        "dimensions": [
+          {
+            "name": "pitch",
+            "value": 75,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          }
+        ],
+        "coverage": 0.9,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "reference-low-coverage",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "reference_song",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 69.3,
+        "unavailable_reason": null,
+        "dimensions": [
+          {
+            "name": "pitch",
+            "value": 75,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          },
+          {
+            "name": "rhythm",
+            "value": 80,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          }
+        ],
+        "coverage": 0.79,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "score-unavailable-with-total",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "free_singing",
+        "ruleset_version": "engineering-v1",
+        "available": false,
+        "total": 0,
+        "unavailable_reason": "REFERENCE_OR_DEFINED_TASK_REQUIRED",
+        "dimensions": [],
+        "coverage": null,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "score-out-of-range",
+      "schema": "ScoreBundle",
+      "expected_valid": false,
+      "value": {
+        "profile": "reference_song",
+        "ruleset_version": "engineering-v1",
+        "available": true,
+        "total": 101,
+        "unavailable_reason": null,
+        "dimensions": [
+          {
+            "name": "pitch",
+            "value": 75,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          },
+          {
+            "name": "rhythm",
+            "value": 80,
+            "available": true,
+            "unavailable_reason": null,
+            "coverage": 0.9,
+            "unit": "score_0_100"
+          }
+        ],
+        "coverage": 0.9,
+        "label": "练习参考分",
+        "professional_validation": false
+      }
+    },
+    {
+      "id": "disabled-valid",
+      "schema": "Capabilities",
+      "expected_valid": true,
+      "value": {
+        "adapter_id": "reserved-existing-service",
+        "enabled": false,
+        "mode": "disabled",
+        "backend_kind": "disabled",
+        "supports_lyrics": false,
+        "supports_midi": false,
+        "supports_dry_vocal": false,
+        "supported_languages": [],
+        "max_seconds": 0,
+        "model_revision": null,
+        "requires_training": false
+      }
+    },
+    {
+      "id": "disabled-but-model",
+      "schema": "Capabilities",
+      "expected_valid": false,
+      "value": {
+        "adapter_id": "reserved-existing-service",
+        "enabled": false,
+        "mode": "real",
+        "backend_kind": "disabled",
+        "supports_lyrics": false,
+        "supports_midi": false,
+        "supports_dry_vocal": false,
+        "supported_languages": [],
+        "max_seconds": 0,
+        "model_revision": null,
+        "requires_training": false
+      }
+    },
+    {
+      "id": "disabled-but-duration",
+      "schema": "Capabilities",
+      "expected_valid": false,
+      "value": {
+        "adapter_id": "reserved-existing-service",
+        "enabled": false,
+        "mode": "disabled",
+        "backend_kind": "disabled",
+        "supports_lyrics": false,
+        "supports_midi": false,
+        "supports_dry_vocal": false,
+        "supported_languages": [],
+        "max_seconds": 30,
+        "model_revision": null,
+        "requires_training": false
+      }
+    },
+    {
+      "id": "disabled-but-language",
+      "schema": "Capabilities",
+      "expected_valid": false,
+      "value": {
+        "adapter_id": "reserved-existing-service",
+        "enabled": false,
+        "mode": "disabled",
+        "backend_kind": "disabled",
+        "supports_lyrics": false,
+        "supports_midi": false,
+        "supports_dry_vocal": false,
+        "supported_languages": [
+          "zh"
+        ],
+        "max_seconds": 0,
+        "model_revision": null,
+        "requires_training": false
+      }
+    },
+    {
+      "id": "profile-patch-valid",
+      "schema": "ProfilePatch",
+      "expected_valid": true,
+      "value": {
+        "version": 1,
+        "minutes_per_day": 20
+      }
+    },
+    {
+      "id": "profile-patch-no-version",
+      "schema": "ProfilePatch",
+      "expected_valid": false,
+      "value": {
+        "minutes_per_day": 20
+      }
+    },
+    {
+      "id": "profile-patch-no-fields",
+      "schema": "ProfilePatch",
+      "expected_valid": false,
+      "value": {
+        "version": 1
+      }
+    },
+    {
+      "id": "profile-patch-spoof-owner",
+      "schema": "ProfilePatch",
+      "expected_valid": false,
+      "value": {
+        "version": 1,
+        "minutes_per_day": 20,
+        "owner_id": "12345678-1234-4234-8234-123456789abc"
+      }
+    },
+    {
+      "id": "retention-valid",
+      "schema": "RetentionPatch",
+      "expected_valid": true,
+      "value": {
+        "version": 1,
+        "raw_audio_days": 7
+      }
+    },
+    {
+      "id": "retention-invalid",
+      "schema": "RetentionPatch",
+      "expected_valid": false,
+      "value": {
+        "version": 1,
+        "raw_audio_days": 9999
+      }
+    },
+    {
+      "id": "retention-empty",
+      "schema": "RetentionPatch",
+      "expected_valid": false,
+      "value": {
+        "version": 1
+      }
+    },
+    {
+      "id": "workflow-valid",
+      "schema": "WorkflowCreate",
+      "expected_valid": true,
+      "value": {
+        "session_id": "12345678-1234-4234-8234-123456789abc",
+        "action": "knowledge_then_planning",
+        "question": "如何练长音",
+        "goal": "练习稳定性",
+        "minutes_per_day": 20,
+        "days": 7,
+        "confirmed": true
+      }
+    },
+    {
+      "id": "workflow-no-confirm",
+      "schema": "WorkflowCreate",
+      "expected_valid": false,
+      "value": {
+        "session_id": "12345678-1234-4234-8234-123456789abc",
+        "action": "knowledge_then_planning",
+        "question": "如何练长音",
+        "goal": "练习稳定性",
+        "minutes_per_day": 20,
+        "days": 7,
+        "confirmed": false
+      }
+    },
+    {
+      "id": "workflow-both-inputs",
+      "schema": "WorkflowCreate",
+      "expected_valid": false,
+      "value": {
+        "session_id": "12345678-1234-4234-8234-123456789abc",
+        "action": "knowledge_then_planning",
+        "question": "如何练长音",
+        "goal": "练习稳定性",
+        "minutes_per_day": 20,
+        "days": 7,
+        "confirmed": true,
+        "assessment": {
+          "asset_id": "12345678-1234-4234-8234-123456789abc",
+          "mode": "short",
+          "reference_kind": "none",
+          "task_kind": "free_singing",
+          "acappella_confirmed": true
+        }
+      }
+    },
+    {
+      "id": "workflow-assessment-valid",
+      "schema": "WorkflowCreate",
+      "expected_valid": true,
+      "value": {
+        "session_id": "12345678-1234-4234-8234-123456789abc",
+        "action": "assessment_then_planning",
+        "goal": "练习稳定性",
+        "minutes_per_day": 20,
+        "days": 7,
+        "confirmed": true,
+        "assessment": {
+          "asset_id": "12345678-1234-4234-8234-123456789abc",
+          "mode": "short",
+          "reference_kind": "none",
+          "task_kind": "free_singing",
+          "acappella_confirmed": true
+        }
+      }
+    },
+    {
+      "id": "resume-valid",
+      "schema": "WorkflowResume",
+      "expected_valid": true,
+      "value": {
+        "version": 1,
+        "resume_token": "synthetic-only-token",
+        "input": {
+          "goal": "长音"
+        }
+      }
+    },
+    {
+      "id": "resume-unknown-node",
+      "schema": "WorkflowResume",
+      "expected_valid": false,
+      "value": {
+        "version": 1,
+        "resume_token": "synthetic-only-token",
+        "input": {},
+        "node": "arbitrary"
+      }
+    },
+    {
+      "id": "report-current-valid",
+      "schema": "Report",
+      "expected_valid": true,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "job_id": "22222222-2222-4222-8222-222222222222",
+        "quality": {
+          "status": "limited",
+          "issues": [
+            "仅演示数据，没有真实分析"
+          ],
+          "reference_coverage": null
+        },
+        "metrics": [
+          {
+            "name": "pitch_accuracy",
+            "value": null,
+            "unit": "cents",
+            "available": false,
+            "unavailable_reason": "缺少旋律参考",
+            "algorithm_version": "demo-only"
+          }
+        ],
+        "segments": [],
+        "limitations": [
+          "synthetic prototype data"
+        ],
+        "algorithm_version": "demo-only",
+        "explanation_version": "demo-only",
+        "created_at": "2026-11-03T00:00:00Z",
+        "measurement_version": "synthetic-only",
+        "scores": {
+          "profile": "free_singing",
+          "ruleset_version": "engineering-v1",
+          "available": false,
+          "total": null,
+          "unavailable_reason": "REFERENCE_OR_DEFINED_TASK_REQUIRED",
+          "dimensions": [],
+          "coverage": null,
+          "label": "练习参考分",
+          "professional_validation": false
+        }
+      }
+    },
+    {
+      "id": "quality-failed-cannot-score",
+      "schema": "Report",
+      "expected_valid": false,
+      "value": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "job_id": "22222222-2222-4222-8222-222222222222",
+        "quality": {
+          "status": "quality_failed",
+          "issues": [
+            "仅演示数据，没有真实分析"
+          ],
+          "reference_coverage": null
+        },
+        "metrics": [
+          {
+            "name": "pitch_accuracy",
+            "value": null,
+            "unit": "cents",
+            "available": false,
+            "unavailable_reason": "缺少旋律参考",
+            "algorithm_version": "demo-only"
+          }
+        ],
+        "segments": [],
+        "limitations": [
+          "synthetic prototype data"
+        ],
+        "algorithm_version": "demo-only",
+        "explanation_version": "demo-only",
+        "created_at": "2026-11-03T00:00:00Z",
+        "measurement_version": "synthetic-only",
+        "scores": {
+          "profile": "reference_song",
+          "ruleset_version": "engineering-v1",
+          "available": true,
+          "total": 69.3,
+          "unavailable_reason": null,
+          "dimensions": [
+            {
+              "name": "pitch",
+              "value": 75,
+              "available": true,
+              "unavailable_reason": null,
+              "coverage": 0.9,
+              "unit": "score_0_100"
+            },
+            {
+              "name": "rhythm",
+              "value": 80,
+              "available": true,
+              "unavailable_reason": null,
+              "coverage": 0.9,
+              "unit": "score_0_100"
+            }
+          ],
+          "coverage": 0.9,
+          "label": "练习参考分",
+          "professional_validation": false
+        }
+      }
+    }
+  ]
+}

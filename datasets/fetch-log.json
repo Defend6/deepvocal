@@ -1,0 +1,59 @@
+{
+  "retrieved_at": "2026-11-03",
+  "records": [
+    {
+      "path": "vocadito/vocadito.zip",
+      "status": "DOWNLOADED",
+      "bytes": 58492257,
+      "sha256": "e0d6b99d3f9c594afe5ae5c4d7bdacebe569e53b809e90b89d1c771c4f9990e3"
+    },
+    {
+      "path": "vocal-textbook/book.epub",
+      "status": "DOWNLOADED",
+      "bytes": 1378708,
+      "sha256": "dd0260d580bd797f1d907a270be8cf836400a1648e604b5064a23053d7f16fe9"
+    },
+    {
+      "path": "vocal-textbook/book.pdf",
+      "status": "DOWNLOADED",
+      "bytes": 1009538,
+      "sha256": "5c74cae0585a50af4c7f44d6a7949fa601a359d741c96db602fce14060f20bfc"
+    },
+    {
+      "path": "omt/tree.json",
+      "status": "DOWNLOADED",
+      "bytes": 224534,
+      "sha256": "13df67a4f0c02b12cc7ad6a9eb9dff5fe2f0f7e5b1604a53007da9be245b3aee"
+    },
+    {
+      "path": "lieder/tree.json",
+      "status": "DOWNLOADED",
+      "bytes": 3537438,
+      "sha256": "59c086df2ca14127f34a6df21469e18168740d034366d0a2d4ee48503e7cbe9f"
+    },
+    {
+      "path": "nidcd/voice-health.pdf",
+      "status": "DOWNLOADED",
+      "bytes": 2038341,
+      "sha256": "ca81c2ef72c1c42030d46d4880a57e0c628c7cd66f0852dead2971e3dac31741"
+    },
+    {
+      "path": "nidcd/hoarseness.html",
+      "status": "DOWNLOADED",
+      "bytes": 51923,
+      "sha256": "d3f96e32c18d4715f6b5eecf54d72374369389bae3c4252748577c1ea965cd19"
+    },
+    {
+      "path": "nidcd/how-voice-produced.html",
+      "status": "DOWNLOADED",
+      "bytes": 56603,
+      "sha256": "609ea11ac0453a295bf9ef8b8c8c874b7091a37d8348953466f21db77a7c825f"
+    },
+    {
+      "path": "nidcd/spasmodic-dysphonia.html",
+      "status": "DOWNLOADED",
+      "bytes": 52056,
+      "sha256": "7872820f1bd7b0613577fc127033ddc3bc1825007d25fdbfbf78e3c900c4cbf8"
+    }
+  ]
+}
