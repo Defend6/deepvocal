@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     singing_enabled: bool = False
     model_provider: str = "disabled"
+    database_url: str = "postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal"
 
 
 @lru_cache

@@ -8,7 +8,7 @@ DeepVocal 是基于 LangGraph 的多 Agent 声乐辅助系统。当前仓库从�
 - 数据准备库：`datasets/`
 - 后端骨架：`apps/api/`
 - 前端骨架：`apps/web/`
-- Docker 基础设施：`infra/docker-compose.yml`
+- Docker 基础设施：PostgreSQL、Redis、RustFS（S3 兼容）、Neo4j、Milvus 与 etcd，定义在 `infra/docker-compose.yml`
 - 模型和歌声生成：当前为 Mock/disabled，不代表已接入
 
 ## 本地启动顺序
@@ -16,11 +16,12 @@ DeepVocal 是基于 LangGraph 的多 Agent 声乐辅助系统。当前仓库从�
 1. 复制 `.env.example` 为 `.env`，只填写本地服务配置。
 2. 启动基础设施：`docker compose -f infra/docker-compose.yml up -d`
 3. 建立并安装 API 环境：`python -m venv .venv`，Windows 下执行 `.venv\\Scripts\\python -m pip install -e "apps/api[dev]"`。
-4. 在项目根目录运行 API：`.venv\\Scripts\\python -m uvicorn app.main:app --reload --app-dir apps/api`。
-5. 安装并运行前端：`npm --prefix apps/web install && npm --prefix apps/web run dev`。
-6. 后端测试：`Set-Location apps/api; ..\\..\\.venv\\Scripts\\python -m pytest`。
+4. 执行数据库迁移：`.venv\\Scripts\\python -m alembic -c apps/api/alembic.ini upgrade head`。
+5. 在项目根目录运行 API：`.venv\\Scripts\\python -m uvicorn app.main:app --reload --app-dir apps/api`。
+6. 安装并运行前端：`npm --prefix apps/web install && npm --prefix apps/web run dev`。
+7. 后端测试：`Set-Location apps/api; ..\\..\\.venv\\Scripts\\python -m pytest`。
 
-当前实现节点已完成：React 前端可访问 FastAPI 健康检查和结构化路由接口，规则路由与健康接口测试通过。真实模型、知识检索、音频分析、数据库迁移、对象存储和后台 worker 尚未实现；页面中的音频上传按钮目前仅是入口占位。
+当前实现节点已完成：React 前端可访问 FastAPI 健康检查和结构化路由接口，规则路由与健康接口测试通过。真实模型、知识检索、音频分析、业务数据库迁移、对象存储适配器和后台 worker 尚未实现；页面中的音频上传按钮目前仅是入口占位。
 
 ## 分支约定
 
@@ -32,4 +33,4 @@ DeepVocal 是基于 LangGraph 的多 Agent 声乐辅助系统。当前仓库从�
 - `feature/planning/*`：练习规划
 - `feature/singing/*`：未来歌声生成接口
 
-GitHub 私有仓库需要在拥有远端 URL 和登录凭据后再绑定；在此之前本地提交仍可完整追踪。
+GitHub CLI 使用 `gh auth login` 登录后创建私有远端；不要将 `.env`、用户录音或未经审核的数据集推送到仓库。
