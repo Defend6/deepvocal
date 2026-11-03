@@ -9,7 +9,9 @@ import asyncpg
 import pytest
 
 DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-pytestmark = pytest.mark.skipif(not DATABASE_URL, reason="set TEST_DATABASE_URL for PostgreSQL integration checks")
+pytestmark = pytest.mark.skipif(
+    not DATABASE_URL, reason="set TEST_DATABASE_URL for PostgreSQL integration checks"
+)
 API_ROOT = Path(__file__).resolve().parents[1]
 
 

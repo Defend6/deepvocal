@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,6 +14,15 @@ class Settings(BaseSettings):
     api_port: int = 8000
     singing_enabled: bool = False
     model_provider: str = "disabled"
+    auth_mode: str = "local"
+    oidc_issuer: str = ""
+    oidc_audience: str = ""
+    oidc_jwks_url: str = ""
+    auth_clock_skew_seconds: int = 30
+    local_test_issuer: str = "https://local.deepvocal.test"
+    local_test_subject: str = "local-dev-user"
+    max_audio_size_bytes: int = 104857600
+    upload_expiry_seconds: int = 3600
     database_url: str = "postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal"
     corpus_root: str = str(Path(__file__).resolve().parents[3] / "datasets")
     s3_endpoint: str = "http://127.0.0.1:9000"
@@ -21,6 +31,25 @@ class Settings(BaseSettings):
     s3_secret_key: str = "change-me-local-only"
     s3_region: str = "us-east-1"
     s3_presign_ttl_seconds: int = 900
+
+    @model_validator(mode="after")
+    def validate_auth_configuration(self) -> "Settings":
+        if self.auth_mode not in {"local", "oidc"}:
+            raise ValueError("AUTH_MODE must be local or oidc")
+        if self.deepvocal_mode.lower() == "production":
+            if self.auth_mode != "oidc":
+                raise ValueError("production requires AUTH_MODE=oidc")
+            if not self.oidc_issuer or not self.oidc_audience or not self.oidc_jwks_url:
+                raise ValueError("production OIDC requires issuer, audience, and JWKS URL")
+        if self.auth_mode == "local" and self.deepvocal_mode.lower() not in {
+            "mock",
+            "development",
+            "test",
+        }:
+            raise ValueError("local authentication is only allowed in mock/development/test mode")
+        if not 60 <= self.upload_expiry_seconds <= 86400:
+            raise ValueError("upload expiry must be between 60 and 86400 seconds")
+        return self
 
 
 @lru_cache

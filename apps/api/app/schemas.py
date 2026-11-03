@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 AgentName = Literal["knowledge", "assessment", "planning", "singing", "clarify"]
 
@@ -47,3 +48,36 @@ class CorpusStatusResponse(BaseModel):
     milvus_loaded: bool
     expert_review_completed: bool
     user_practice_record_count: int
+
+
+class UploadCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(pattern=r"^audio/[A-Za-z0-9.+-]+$")
+    size_bytes: int = Field(gt=0, le=104857600)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    purpose: Literal["assessment", "voice_sample", "melody", "reference", "generated_reference"]
+
+
+class UploadCreateResponse(BaseModel):
+    asset_id: str
+    object_key: str
+    upload_url: str
+    required_headers: dict[str, str]
+    expires_in: int
+
+
+class UploadCompleteResponse(BaseModel):
+    asset_id: str
+    status: Literal["ready"]
+    content_type: str
+    size_bytes: int
+    sha256: str
+    completed_at: datetime
+
+
+class AuthUserResponse(BaseModel):
+    id: str
+    issuer: str
+    subject: str
