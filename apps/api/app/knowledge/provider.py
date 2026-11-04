@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import math
 
 import httpx
+
+from app.knowledge.budget import ModelBudget
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderDisabled(RuntimeError):
@@ -16,25 +23,57 @@ class ProviderError(RuntimeError):
 class ModelProvider:
     """Bounded HTTP adapter; no request is sent without an explicitly configured key."""
 
-    def __init__(self, settings, transport=None):
+    def __init__(
+        self, settings, transport=None, budget=None, owner_id=None, job_id=None, claim_context=None
+    ):
         self.settings = settings
         self.transport = transport
+        self.budget = budget
+        self.owner_id, self.job_id = owner_id, job_id
+        self.claim_context = claim_context
 
     async def post(self, endpoint: str, body: dict) -> dict:
         if not self.settings.model_api_key:
             raise ProviderDisabled("MODEL_API_KEY_REQUIRED")
+        if endpoint not in {"/embeddings", "/rerank", "/chat/completions"}:
+            raise ProviderError("MODEL_ENDPOINT_REJECTED")
+        ledger = self.budget or ModelBudget(
+            self.settings,
+            owner_id=self.owner_id,
+            job_id=self.job_id,
+            claim_context=self.claim_context,
+        )
+        call_id = await ledger.reserve(endpoint, body)
+        await ledger.dispatch(call_id)
+        payload = None
         try:
-            async with httpx.AsyncClient(timeout=45, transport=self.transport) as client:
-                response = await client.post(
+            async with httpx.AsyncClient(timeout=45, transport=self.transport) as client:  # noqa: SIM117 -- stream uses this client's lifetime
+                async with client.stream(
+                    "POST",
                     self.settings.model_api_base.rstrip("/") + endpoint,
                     headers={"Authorization": f"Bearer {self.settings.model_api_key}"},
                     json=body,
-                )
-                response.raise_for_status()
-                return response.json()
+                ) as response:
+                    response.raise_for_status()
+                    data = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        data.extend(chunk)
+                        if len(data) > 8388608:
+                            raise ProviderError("MODEL_RESPONSE_TOO_LARGE")
+                    payload = json.loads(data)
+                    if not isinstance(payload, dict):
+                        raise ProviderError("INVALID_MODEL_RESPONSE")
+                    return payload
         except (httpx.HTTPError, ValueError) as exc:
             # Avoid upstream response text, URLs with parameters and secret-bearing request objects.
             raise ProviderError("MODEL_REQUEST_FAILED") from exc
+        finally:
+            # Shield accounting from cancellation. A crash/DB failure leaves the reservation held,
+            # never automatically releases a possibly billed call.
+            try:
+                await asyncio.shield(ledger.settle(call_id, payload))
+            except Exception:  # noqa: BLE001 -- preserve held amount and redact provider data
+                logger.error("Model accounting settlement deferred; reservation remains held")
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts or len(texts) > 32 or any(len(t) > 6000 for t in texts):

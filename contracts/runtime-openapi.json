@@ -956,6 +956,25 @@
           }
         }
       }
+    },
+    "/v1/model/usage": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Model Usage",
+        "operationId": "model_usage_v1_model_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

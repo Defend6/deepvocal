@@ -54,6 +54,18 @@ def test_key_missing_has_evidence_preview_not_fake_answer(tmp_path):
 def test_provider_http_contract_secret_redaction_and_vector_validation():
     requests = []
 
+    class TestBudget:
+        async def reserve(self, endpoint, body):
+            return "isolated-http-contract-test"
+
+        async def dispatch(self, call_id):
+            pass
+
+        async def settle(self, call_id, payload):
+            pass
+
+    budget = TestBudget()
+
     def respond(request):
         requests.append(request)
         assert request.headers["Authorization"] == "Bearer test-secret"
@@ -62,19 +74,23 @@ def test_provider_http_contract_secret_redaction_and_vector_validation():
         return httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.1, 0.2]}]})
 
     settings = Settings(model_api_key="test-secret")
-    assert asyncio.run(ModelProvider(settings, httpx.MockTransport(respond)).embed(["test"])) == [
-        [0.1, 0.2]
-    ]
+    assert asyncio.run(
+        ModelProvider(settings, httpx.MockTransport(respond), budget=budget).embed(["test"])
+    ) == [[0.1, 0.2]]
     assert len(requests) == 1
     with pytest.raises(ProviderDisabled):
         asyncio.run(ModelProvider(Settings()).embed(["test"]))
     bad = ModelProvider(
-        settings, httpx.MockTransport(lambda _: httpx.Response(200, json={"data": []}))
+        settings,
+        httpx.MockTransport(lambda _: httpx.Response(200, json={"data": []})),
+        budget=budget,
     )
     with pytest.raises(ProviderError):
         asyncio.run(bad.embed(["test"]))
     fail = ModelProvider(
-        settings, httpx.MockTransport(lambda _: httpx.Response(401, text="secret-upstream-body"))
+        settings,
+        httpx.MockTransport(lambda _: httpx.Response(401, text="secret-upstream-body")),
+        budget=budget,
     )
     with pytest.raises(ProviderError) as exc:
         asyncio.run(fail.embed(["test"]))

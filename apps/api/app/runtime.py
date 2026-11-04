@@ -10,8 +10,11 @@ async def execute_job(job: dict) -> dict:
     from app.business import assessment_tool, knowledge_tool, planning_tool, singing_tool
     from app.skills import selected_skill
 
+    async def knowledge_for_current_claim(state):
+        return await knowledge_tool(state, claim_context=job)
+
     handlers = {
-        "knowledge.retrieve": knowledge_tool,
+        "knowledge.retrieve": knowledge_for_current_claim,
         "assessment.submit": assessment_tool,
         "plans.create": planning_tool,
         "singing.capabilities": singing_tool,

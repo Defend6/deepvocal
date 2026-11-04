@@ -35,6 +35,11 @@ export const labels: Record<string, string> = {
   planned: "计划已保存",
   unavailable: "暂不可用",
   MODEL_API_KEY_REQUIRED: "模型 API Key 尚未配置，当前只展示检索资料预览。",
+  MODEL_BUDGET_NOT_CONFIGURED:
+    "尚未确认模型预算与计费配置，本次没有发起付费调用。",
+  MODEL_PRICING_NOT_CONFIGURED: "当前模型的计费上界尚未配置，本次调用已阻止。",
+  MODEL_BUDGET_EXHAUSTED: "本月模型预算不足或核账异常，请检查本地费用记录。",
+  MODEL_JOB_NO_LONGER_ACTIVE: "任务已取消或执行租约失效，已阻止后续模型调用。",
   EXTERNAL_SINGING_SERVICE_NOT_CONFIGURED:
     "歌声生成接口已预留，外部服务尚未配置。",
   INSUFFICIENT_EVIDENCE: "当前资料不足以支持回答，请补充或调整问题。",

@@ -26,7 +26,11 @@ class JobCreate(BaseModel):
 
 async def enqueue(session: AsyncSession, owner: str, request: JobCreate) -> dict:
     try:
-        if request.kind == "planning":
+        if request.kind == "knowledge":
+            from app.knowledge.policy import KnowledgeInput
+
+            KnowledgeInput.model_validate(request.input)
+        elif request.kind == "planning":
             from app.planning import PlanningInput
 
             PlanningInput.model_validate(request.input)

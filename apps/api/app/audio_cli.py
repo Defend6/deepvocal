@@ -1,10 +1,13 @@
 """Offline measurement without bypassing the server's pending-asset policy."""
 
 import argparse
+import asyncio
 import json
 from pathlib import Path
 
-from app.audio import AssessmentInput, assess_bytes
+from app.audio import AssessmentInput
+from app.audio_process import assess_isolated
+from app.config import get_settings
 
 
 def main():
@@ -16,7 +19,7 @@ def main():
     if args.audio.stat().st_size > 104857600:
         parser.error("audio exceeds 100 MiB")
     config = AssessmentInput.model_validate_json(args.config.read_text(encoding="utf-8"))
-    result = assess_bytes(args.audio.read_bytes(), config)
+    result = asyncio.run(assess_isolated(args.audio.read_bytes(), config, get_settings()))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, allow_nan=False, indent=2), encoding="utf-8"

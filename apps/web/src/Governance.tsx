@@ -23,6 +23,17 @@ type Skills = {
   discovery: { skill_id: string; name: string; description: string }[];
   versions: Version[];
 };
+type ModelUsage = {
+  configured: boolean;
+  currency: string;
+  periods: {
+    period: string;
+    calls: number;
+    accounted_minor: number;
+    held_minor: number;
+  }[];
+  notice: string;
+};
 
 export function Governance({
   identity,
@@ -33,17 +44,20 @@ export function Governance({
 }) {
   const [memory, setMemory] = useState<Memory | null>(null);
   const [skills, setSkills] = useState<Skills | null>(null);
+  const [usage, setUsage] = useState<ModelUsage | null>(null);
   const [goal, setGoal] = useState("foundation");
   const [minutes, setMinutes] = useState(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function reload() {
-    const [m, s] = await Promise.all([
+    const [m, s, u] = await Promise.all([
       request<Memory>(identity, "/v1/memory"),
       request<Skills>(identity, "/v1/skills"),
+      request<ModelUsage>(identity, "/v1/model/usage"),
     ]);
     setMemory(m);
     setSkills(s);
+    setUsage(u);
     setGoal(m.l3_profile.preferences?.goal ?? "foundation");
     setMinutes(m.l3_profile.preferences?.minutes ?? 10);
   }
@@ -52,11 +66,15 @@ export function Governance({
     void Promise.all([
       request<Memory>(identity, "/v1/memory", { signal: controller.signal }),
       request<Skills>(identity, "/v1/skills", { signal: controller.signal }),
+      request<ModelUsage>(identity, "/v1/model/usage", {
+        signal: controller.signal,
+      }),
     ])
-      .then(([m, s]) => {
+      .then(([m, s, u]) => {
         if (!controller.signal.aborted) {
           setMemory(m);
           setSkills(s);
+          setUsage(u);
           setGoal(m.l3_profile.preferences?.goal ?? "foundation");
           setMinutes(m.l3_profile.preferences?.minutes ?? 10);
         }
@@ -96,6 +114,21 @@ export function Governance({
             {error}
           </p>
         )}
+        <details>
+          <summary>
+            模型用量与费用 ·{" "}
+            {usage?.configured ? "已配置本地预算" : "付费调用未启用"}
+          </summary>
+          <p className="muted">{usage?.notice}</p>
+          {usage?.periods.length === 0 && <p>本身份尚无模型调用费用记录。</p>}
+          {usage?.periods.map((period) => (
+            <p key={period.period}>
+              {period.period} · {period.calls} 次调用 · 保守记账 ¥
+              {(period.accounted_minor / 100).toFixed(2)} · 未结占用 ¥
+              {(period.held_minor / 100).toFixed(2)}
+            </p>
+          ))}
+        </details>
         <details>
           <summary>
             跨会话记忆 · {memory?.enabled ? "已开启" : "默认关闭"}

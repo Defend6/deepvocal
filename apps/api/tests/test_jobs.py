@@ -40,6 +40,7 @@ async def database_case():
     finally:
         async with sessions() as session:
             for table in (
+                "model_call_reservations",
                 "skill_versions",
                 "memory_facts",
                 "memory_events",

@@ -54,6 +54,12 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   ).toBeVisible({ timeout: 30000 });
   await expect(page.getByText("资料预览（尚未生成模型回答）")).toBeVisible();
   await page
+    .getByText("模型用量与费用 · 付费调用未启用", { exact: true })
+    .click();
+  await expect(
+    page.getByText("本身份尚无模型调用费用记录。", { exact: true }),
+  ).toBeVisible();
+  await page
     .getByRole("button", { name: "练习规划 目标约束 · 练习反馈" })
     .click();
   await page.getByLabel("练习目标", { exact: true }).selectOption("pitch");
@@ -105,13 +111,11 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await page
     .getByRole("button", { name: "录音诊断与全曲测评 工程测量 · 分段报告" })
     .click();
-  await page
-    .getByLabel("选择清唱录音")
-    .setInputFiles({
-      name: "synthetic-test.wav",
-      mimeType: "audio/wav",
-      buffer: wav(),
-    });
+  await page.getByLabel("选择清唱录音").setInputFiles({
+    name: "synthetic-test.wav",
+    mimeType: "audio/wav",
+    buffer: wav(),
+  });
   await expect(
     page.getByText("synthetic-test.wav · 待校验（pending）", { exact: false }),
   ).toBeVisible({ timeout: 30000 });

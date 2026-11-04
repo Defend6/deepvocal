@@ -65,7 +65,7 @@ async def ready():
     async def check():
         async with _session_factory()() as session:
             version = await session.scalar(
-                text("SELECT 1 FROM alembic_version WHERE version_num='0005_memory_skills'")
+                text("SELECT 1 FROM alembic_version WHERE version_num='0006_provider_budget'")
             )
             if version != 1:
                 raise RuntimeError("migration required")
@@ -137,13 +137,28 @@ def capabilities(agent: str) -> CapabilityResponse:
             reason="external singing service protocol is not configured",
         )
     if agent == "knowledge":
+        from app.knowledge.budget import BudgetBlocked, price_quote
+
+        reason = "MODEL_API_KEY_REQUIRED"
+        enabled = False
+        if settings.model_api_key:
+            try:
+                for model in (
+                    settings.chat_model,
+                    settings.embedding_model,
+                    settings.reranker_model,
+                ):
+                    price_quote(settings, {"model": model})
+            except BudgetBlocked as exc:
+                reason = str(exc)
+            else:
+                enabled = True
+                reason = "research corpus and provider account must pass validation"
         return CapabilityResponse(
             agent=agent,
-            enabled=bool(settings.model_api_key),
-            status="available" if settings.model_api_key else "disabled",
-            reason="research corpus and provider account must pass validation"
-            if settings.model_api_key
-            else "MODEL_API_KEY_REQUIRED",
+            enabled=enabled,
+            status="available" if enabled else "disabled",
+            reason=reason,
         )
     if agent == "assessment":
         return CapabilityResponse(
@@ -166,3 +181,10 @@ def corpus_status() -> CorpusStatusResponse:
         return CorpusStatusResponse(**CorpusStatusService(settings.corpus_root).status())
     except CorpusNotFoundError as exc:
         raise HTTPException(503, "corpus metadata unavailable") from exc
+
+
+@app.get("/v1/model/usage", tags=["models"])
+async def model_usage(user: User):
+    from app.knowledge.budget import ModelBudget
+
+    return await ModelBudget(settings).own_usage(user["id"])

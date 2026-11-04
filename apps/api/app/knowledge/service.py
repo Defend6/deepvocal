@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from uuid import uuid4
 
+from app.knowledge.budget import BudgetBlocked
 from app.knowledge.governance import load_bundle
 from app.knowledge.indexes import (
     KnowledgeIndexes,
@@ -14,15 +15,20 @@ from app.knowledge.indexes import (
     lexical_search,
     reciprocal_rank_fusion,
 )
+from app.knowledge.policy import KnowledgeInput, health_boundary
 from app.knowledge.provider import ModelProvider, ProviderDisabled, ProviderError
 
 logger = logging.getLogger(__name__)
 
 
 class KnowledgeService:
-    def __init__(self, settings, provider=None, indexes=None):
+    def __init__(
+        self, settings, provider=None, indexes=None, owner_id=None, job_id=None, claim_context=None
+    ):
         self.settings = settings
-        self.provider = provider or ModelProvider(settings)
+        self.provider = provider or ModelProvider(
+            settings, owner_id=owner_id, job_id=job_id, claim_context=claim_context
+        )
         self.indexes = indexes or KnowledgeIndexes(settings)
 
     async def ingest(self) -> dict:
@@ -65,10 +71,8 @@ class KnowledgeService:
         return manifest
 
     async def answer(self, question: str, skill: dict | None = None) -> dict:
-        if any(
-            word in question
-            for word in ("用药", "吃什么药", "诊断疾病", "声带结节", "嗓子疼", "喉咙痛")
-        ):
+        KnowledgeInput(text=question)
+        if health_boundary(question):
             return {
                 "status": "refused",
                 "reason": "HEALTH_BOUNDARY",
@@ -146,6 +150,8 @@ class KnowledgeService:
                     "version": bundle["version"],
                 },
             }
+        except BudgetBlocked as exc:
+            return {"status": "disabled", "reason": str(exc), "citations": []}
         except ProviderDisabled:
             return {"status": "disabled", "reason": "MODEL_API_KEY_REQUIRED", "citations": []}
         except ProviderError:

@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     chat_model: str = "Qwen/Qwen3-8B"
     embedding_model: str = "BAAI/bge-m3"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    model_monthly_limit_minor: int = 0
+    model_prices_json: str = "{}"
+    model_billing_verified: bool = False
+    audio_process_timeout_seconds: int = 90
+    audio_process_memory_mib: int = 1536
+    audio_runtime_root: str = str(Path(__file__).resolve().parents[3] / "runtime" / "audio")
     knowledge_mode: str = "research"
     knowledge_bundle: str = str(
         Path(__file__).resolve().parents[3] / "datasets" / "working" / "knowledge.json"
@@ -60,6 +66,12 @@ class Settings(BaseSettings):
             raise ValueError("local authentication is only allowed in mock/development/test mode")
         if not 60 <= self.upload_expiry_seconds <= 86400:
             raise ValueError("upload expiry must be between 60 and 86400 seconds")
+        if not 0 <= self.model_monthly_limit_minor <= 100000000:
+            raise ValueError("invalid model budget")
+        if not 1 <= self.audio_process_timeout_seconds <= 300:
+            raise ValueError("invalid audio process timeout")
+        if not 512 <= self.audio_process_memory_mib <= 4096:
+            raise ValueError("invalid audio process memory limit")
         return self
 
 

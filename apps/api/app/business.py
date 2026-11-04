@@ -6,11 +6,16 @@ from sqlalchemy import text
 from app.worker import PermanentJobError
 
 
-async def knowledge_tool(state: dict) -> dict:
+async def knowledge_tool(state: dict, claim_context=None) -> dict:
     from app.config import get_settings
     from app.knowledge.service import KnowledgeService
 
-    return await KnowledgeService(get_settings()).answer(state["text"], state.get("skill_context"))
+    return await KnowledgeService(
+        get_settings(),
+        owner_id=state["owner_id"],
+        job_id=state["job_id"],
+        claim_context=claim_context,
+    ).answer(state["text"], state.get("skill_context"))
 
 
 async def planning_tool(state: dict) -> dict:
@@ -38,7 +43,8 @@ async def planning_tool(state: dict) -> dict:
 
 
 async def assessment_tool(state: dict) -> dict:
-    from app.audio import AssessmentInput, assess_bytes
+    from app.audio import AssessmentInput
+    from app.audio_process import assess_isolated
     from app.config import get_settings
     from app.database import _session_factory
     from app.storage.s3 import S3Storage
@@ -73,8 +79,8 @@ async def assessment_tool(state: dict) -> dict:
 
     data = await asyncio.to_thread(load)
     try:
-        return await asyncio.to_thread(
-            assess_bytes, data, AssessmentInput.model_validate(state["input"])
+        return await assess_isolated(
+            data, AssessmentInput.model_validate(state["input"]), get_settings()
         )
     except ValueError as exc:
         raise PermanentJobError(str(exc)[:80]) from exc
