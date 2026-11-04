@@ -772,6 +772,27 @@
         }
       }
     },
+    "/v1/operations/diagnostics": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "summary": "Diagnostics",
+        "operationId": "diagnostics_v1_operations_diagnostics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnDiagnostics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ready": {
       "get": {
         "summary": "Ready",
@@ -1355,6 +1376,108 @@
           "idempotency_key"
         ],
         "title": "JobCreate"
+      },
+      "JobFinding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "attempt": {
+            "type": "integer",
+            "title": "Attempt"
+          },
+          "max_attempts": {
+            "type": "integer",
+            "title": "Max Attempts"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "attempt",
+          "max_attempts",
+          "code"
+        ],
+        "title": "JobFinding"
+      },
+      "OwnDiagnostics": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "active_retries": {
+            "type": "integer",
+            "title": "Active Retries"
+          },
+          "oldest_queued_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Queued Seconds"
+          },
+          "budget_needs_review": {
+            "type": "integer",
+            "title": "Budget Needs Review"
+          },
+          "worker_signal": {
+            "type": "string",
+            "enum": [
+              "recent_heartbeat",
+              "no_recent_heartbeat"
+            ],
+            "title": "Worker Signal"
+          },
+          "alerts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alerts"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/JobFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counts",
+          "active_retries",
+          "oldest_queued_seconds",
+          "budget_needs_review",
+          "worker_signal",
+          "alerts",
+          "findings"
+        ],
+        "title": "OwnDiagnostics"
       },
       "PlanEdit": {
         "properties": {

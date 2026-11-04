@@ -14,6 +14,7 @@ from app.identity import Session, User
 from app.jobs import router as jobs_router
 from app.knowledge.corpus import CorpusNotFoundError, CorpusStatusService
 from app.memory import router as memory_router
+from app.operations.diagnostics import router as operations_router
 from app.schemas import (
     AuthUserResponse,
     CapabilityResponse,
@@ -36,6 +37,7 @@ app.include_router(assistant_router)
 app.include_router(artifacts_router)
 app.include_router(memory_router)
 app.include_router(skills_router)
+app.include_router(operations_router)
 logger = logging.getLogger("deepvocal.requests")
 
 
@@ -65,7 +67,7 @@ async def ready():
     async def check():
         async with _session_factory()() as session:
             version = await session.scalar(
-                text("SELECT 1 FROM alembic_version WHERE version_num='0006_provider_budget'")
+                text("SELECT 1 FROM alembic_version WHERE version_num='0007_worker_presence'")
             )
             if version != 1:
                 raise RuntimeError("migration required")

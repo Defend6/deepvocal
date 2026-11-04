@@ -7,20 +7,21 @@ import asyncio
 import json
 import logging
 import sys
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 
 from redis.asyncio import Redis
 from redis.exceptions import RedisError, ResponseError
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.database import _session_factory
+from app.operations.heartbeat import WorkerState, worker_presence
+from app.queue_constants import DEAD, GROUP, STREAM
 
 logger = logging.getLogger(__name__)
-STREAM = "deepvocal:jobs"
-GROUP = "workers-v1"
-DEAD = "deepvocal:dead"
 
 
 class RetryableJobError(Exception):
@@ -59,17 +60,21 @@ async def publish_outbox(sessions, redis: Redis, limit: int = 50) -> int:
         return len(rows)
 
 
-async def recover_exhausted(sessions) -> int:
+async def recover_exhausted(sessions, limit: int = 50) -> int:
     async with sessions() as session:
         rows = (
             (
                 await session.execute(
                     text("""
+            WITH exhausted AS (SELECT id FROM jobs
+                WHERE status='RUNNING' AND lease_until < now() AND attempt>=max_attempts
+                ORDER BY lease_until FOR UPDATE SKIP LOCKED LIMIT :limit)
             UPDATE jobs SET status='FAILED',error_code='LEASE_EXHAUSTED',worker_token=NULL,
             lease_until=NULL,version=version+1,updated_at=now()
-            WHERE status='RUNNING' AND lease_until < now() AND attempt>=max_attempts
+            WHERE id IN (SELECT id FROM exhausted)
             RETURNING id,owner_id
-        """)
+        """),
+                    {"limit": limit},
                 )
             )
             .mappings()
@@ -186,10 +191,30 @@ async def process_one(
     sessions,
     handler: Callable[[dict], Awaitable[dict]] = default_handler,
     job_id: str | None = None,
+    state: WorkerState | None = None,
 ) -> bool:
     job = await claim(sessions, job_id)
     if job is None:
         return False
+    if state:
+        state.phase, state.active_job_id = "busy", str(job["id"])
+    started = time.monotonic()
+    logger.info("job_started id=%s kind=%s attempt=%s", str(job["id"]), job["kind"], job["attempt"])
+    try:
+        await process_claimed(sessions, handler, job)
+    finally:
+        logger.info(
+            "job_handler_finished id=%s duration_ms=%s",
+            str(job["id"]),
+            round((time.monotonic() - started) * 1000),
+        )
+        if state:
+            state.phase, state.active_job_id = "idle", None
+            state.tick_generation += 1
+    return True
+
+
+async def process_claimed(sessions, handler, job):
     try:
         result = await asyncio.wait_for(handler(job), timeout=job["timeout_seconds"])
     except (TimeoutError, RetryableJobError) as exc:
@@ -203,14 +228,15 @@ async def process_one(
     except PermanentJobError as exc:
         await finish(sessions, job, None, str(exc)[:80])
     except Exception:  # noqa: BLE001 -- worker boundary redacts private input and persists failure
-        logger.error("Job handler failed", extra={"job_id": str(job["id"])})
+        logger.error("job_failed id=%s code=INTERNAL_ERROR", str(job["id"]))
         await finish(sessions, job, None, "INTERNAL_ERROR")
     else:
         await finish(sessions, job, result, None)
-    return True
 
 
-async def tick(sessions, redis: Redis, consumer: str) -> None:
+async def tick(sessions, redis: Redis, consumer: str, state: WorkerState | None = None) -> None:
+    if state:
+        state.last_error_code = None
     await recover_exhausted(sessions)
     try:
         await publish_outbox(sessions, redis)
@@ -219,7 +245,11 @@ async def tick(sessions, redis: Redis, consumer: str) -> None:
         except ResponseError as exc:
             if "BUSYGROUP" not in str(exc):
                 raise
-        recovered = await redis.xautoclaim(STREAM, GROUP, consumer, 30000, "0-0", count=10)
+        recovered = await redis.xautoclaim(
+            STREAM, GROUP, consumer, 30000, state.reclaim_cursor if state else "0-0", count=10
+        )
+        if state:
+            state.reclaim_cursor = recovered[0]
         messages = list(recovered[1])
         if not messages:
             entries = await redis.xreadgroup(GROUP, consumer, {STREAM: ">"}, count=10, block=500)
@@ -230,12 +260,17 @@ async def tick(sessions, redis: Redis, consumer: str) -> None:
             except (KeyError, ValueError):
                 await redis.xadd(DEAD, {"error": "INVALID_NOTIFICATION", "message_id": message_id})
             else:
-                await process_one(sessions, job_id=job_id)
+                await process_one(sessions, job_id=job_id, state=state)
             await redis.xack(STREAM, GROUP, message_id)
     except RedisError:
-        logger.warning("Redis unavailable; recovering jobs from PostgreSQL", exc_info=True)
+        logger.warning("queue_degraded code=QUEUE_UNAVAILABLE; using database recovery")
+        if state:
+            state.last_error_code = "QUEUE_UNAVAILABLE"
     # DB sweep also recovers delayed retries and lost Redis notifications.
-    await process_one(sessions)
+    await process_one(sessions, state=state)
+    if state:
+        state.tick_generation += 1
+        state.phase = "degraded" if state.last_error_code else "idle"
 
 
 async def run(once: bool = False) -> None:
@@ -244,11 +279,20 @@ async def run(once: bool = False) -> None:
     )
     consumer = "worker-" + str(uuid.uuid4())
     try:
-        while True:
-            await tick(_session_factory(), redis, consumer)
-            if once:
-                return
-            await asyncio.sleep(0.25)
+        sessions = _session_factory()
+        async with worker_presence(sessions, consumer) as state:
+            while True:
+                try:
+                    await tick(sessions, redis, consumer, state)
+                except SQLAlchemyError:
+                    state.phase, state.last_error_code = "degraded", "DATABASE_UNAVAILABLE"
+                    logger.warning("worker_degraded code=DATABASE_UNAVAILABLE; retrying")
+                    if once:
+                        raise
+                    await asyncio.sleep(2)
+                if once:
+                    return
+                await asyncio.sleep(0.25)
     finally:
         await redis.aclose()
 

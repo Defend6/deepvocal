@@ -51,6 +51,7 @@ def test_only_local_test_configuration_is_supported() -> None:
 def test_presign_api_requires_identity_and_has_no_completion_endpoint() -> None:
     client = TestClient(app)
     assert client.get("/v1/me").status_code == 401
+    assert client.get("/v1/operations/diagnostics").status_code == 401
     assert client.post("/v1/uploads", json={}).status_code == 401
     assert client.post("/v1/uploads/asset/complete").status_code == 404
     assert "/v1/uploads/{asset_id}/complete" not in app.openapi()["paths"]

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { labels, request } from "./api";
 import { Governance } from "./Governance";
+import { Operations } from "./Operations";
 import "./styles.css";
 
 type Agent = "knowledge" | "assessment" | "planning" | "singing";
@@ -1163,6 +1164,13 @@ function App() {
           )}
         </div>
       </section>
+      <Operations
+        key={`operations-${identity}`}
+        identity={identity}
+        jobRevision={jobs
+          .map((job) => `${job.id}:${job.status}:${job.attempt}`)
+          .join(",")}
+      />
       <Governance key={identity} identity={identity} completedJobs={jobs} />
       <footer>
         DeepVocal · 本地研究工作台 · 资料与工程参考分均保留可用条件

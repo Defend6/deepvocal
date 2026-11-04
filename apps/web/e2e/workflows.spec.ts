@@ -36,6 +36,26 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await expect(
     page.getByText("本地服务已连接", { exact: false }),
   ).toBeVisible();
+  const diagnostic = page.locator(".operations");
+  await expect(
+    diagnostic.getByRole("heading", { name: "任务运行诊断" }),
+  ).toBeVisible();
+  const failedResponse = await page.request.post("/api/v1/jobs", {
+    headers: { "X-Debug-Identity": identity },
+    data: {
+      kind: "evaluation",
+      input: { check: "e2e-injected-failure" },
+      idempotency_key: crypto.randomUUID(),
+    },
+  });
+  expect(failedResponse.status()).toBe(202);
+  const failedJob = await failedResponse.json();
+  await expect(
+    diagnostic.getByText("过去 24 小时存在失败任务", { exact: false }),
+  ).toBeVisible({ timeout: 30000 });
+  await expect(
+    diagnostic.getByText(`完整任务编号：${failedJob.id}`, { exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -134,5 +154,11 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
     }),
   ).toBeVisible();
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
+  await expect(
+    diagnostic.getByText("当前未发现诊断规则命中的异常。", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    diagnostic.getByText(`完整任务编号：${failedJob.id}`, { exact: true }),
+  ).toHaveCount(0);
   expect(errors).toEqual([]);
 });

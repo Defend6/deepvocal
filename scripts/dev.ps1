@@ -23,12 +23,21 @@ switch ($Action) {
     'worker' { & $pythonExe -m app.worker }
     'web' { npm --prefix apps/web run dev -- --port 5173 --strictPort }
     'test' {
-        $env:TEST_DATABASE_URL = 'postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal'
+        $testDbExists = docker exec deepvocal-postgres-1 psql -U deepvocal -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='deepvocal_test'"; Assert-Exit
+        if ($testDbExists -ne '1') { docker exec deepvocal-postgres-1 createdb -U deepvocal deepvocal_test; Assert-Exit }
+        $env:TEST_DATABASE_URL = 'postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal_test'
         $env:TEST_REDIS_URL = 'redis://127.0.0.1:16379/15'
         $env:TEST_KNOWLEDGE_INDEXES = '1'
-        & $pythonExe -m alembic -c apps/api/alembic.ini upgrade head; Assert-Exit
-        Push-Location apps/api
-        try { & $pythonExe -m pytest -q --basetemp ../../_qa/pytest-script; Assert-Exit } finally { Pop-Location }
+        $priorDatabaseUrl = $env:DATABASE_URL
+        try {
+            $env:DATABASE_URL = $env:TEST_DATABASE_URL
+            & $pythonExe -m alembic -c apps/api/alembic.ini upgrade head; Assert-Exit
+            Push-Location apps/api
+            try { & $pythonExe -m pytest -q --basetemp ../../_qa/pytest-script; Assert-Exit } finally { Pop-Location }
+        } finally {
+            if ($null -eq $priorDatabaseUrl) { Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue }
+            else { $env:DATABASE_URL = $priorDatabaseUrl }
+        }
         & .venv/Scripts/ruff.exe check apps/api/app apps/api/tests; Assert-Exit
         npm --prefix apps/web run build; Assert-Exit
     }
