@@ -11,11 +11,19 @@ from app.knowledge.service import KnowledgeService
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["prepare", "ingest"])
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="prepare an empty disabled bundle if no corpus is mounted; never ignore partial imports",
+    )
     args = parser.parse_args()
     settings = get_settings()
     if args.action == "prepare":
         result = prepare(
-            Path(settings.corpus_root), Path(settings.knowledge_bundle), settings.knowledge_mode
+            Path(settings.corpus_root),
+            Path(settings.knowledge_bundle),
+            settings.knowledge_mode,
+            allow_missing=args.allow_missing,
         )
     else:
         result = asyncio.run(KnowledgeService(settings).ingest())

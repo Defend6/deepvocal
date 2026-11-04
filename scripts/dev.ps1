@@ -14,7 +14,7 @@ switch ($Action) {
         if (-not (Test-Path -LiteralPath '.env')) { Copy-Item -LiteralPath '.env.example' -Destination '.env' }
         docker compose -f infra/docker-compose.yml up -d --wait; Assert-Exit
         & $pythonExe -m alembic -c apps/api/alembic.ini upgrade head; Assert-Exit
-        & $pythonExe -m app.knowledge.cli prepare; Assert-Exit
+        & $pythonExe -m app.knowledge.cli prepare --allow-missing; Assert-Exit
         & $pythonExe scripts/configure_storage.py; Assert-Exit
         npm --prefix apps/web ci; Assert-Exit
         Write-Output 'Setup finished. Run api, worker and web in three terminals.'

@@ -6,8 +6,14 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 paths = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).decode().split("\0")
 errors = []
+allowed_roots = {"apps", "infra", "scripts", ".github"}
+allowed_files = {
+    ".gitignore", ".dockerignore", ".env.example", "README.md", "contracts/runtime-openapi.json",
+}
 for name in filter(None, paths):
     path = Path(name)
+    if path.parts[0] not in allowed_roots and name not in allowed_files:
+        errors.append(f"file outside code publication boundary: {name}")
     if path.name == ".env" or name.startswith(("backups/", "uploads/", "datasets/indexes/", "datasets/working/")):
         errors.append(f"private runtime path tracked: {name}")
     source = root / name

@@ -30,9 +30,6 @@ jobs:
       - run: mkdir -p _qa
       - run: python -m pytest -q --basetemp ../../_qa/ci-pytest
         working-directory: apps/api
-      - run: python scripts/validate_design_contracts.py --repository-only
-      - run: python -m app.knowledge.cli prepare
-      - run: python -m app.knowledge.evaluate --cases fixtures/knowledge-smoke-v1.json --output _qa/knowledge-smoke.json
       - run: python scripts/check_repository.py
   web:
     runs-on: ubuntu-latest

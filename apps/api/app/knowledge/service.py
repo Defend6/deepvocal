@@ -88,6 +88,13 @@ class KnowledgeService:
                 "citations": [],
             }
         by_id = {row["id"]: row for row in bundle["chunks"]}
+        if not by_id:
+            return {
+                "status": "disabled",
+                "reason": "PREPARE_REVIEWED_CORPUS_FIRST",
+                "answer": None,
+                "citations": [],
+            }
         lexical = lexical_search(bundle, question)
         if not lexical and not self.settings.model_api_key:
             return {

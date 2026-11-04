@@ -41,3 +41,27 @@ apps/web/dist/
 .vscode/
 Thumbs.db
 Desktop.ini
+
+# Local project planning, source material and real datasets (never publish)
+/docs/
+/datasets/
+/sources/
+/outputs/
+/validation/
+/diagrams/
+/prototype/
+/configs/
+/database/
+/fixtures/
+/contracts/*
+!/contracts/runtime-openapi.json
+/CHECK_REPORT.md
+/MANIFEST.sha256
+/index.html
+/requirements-traceability.csv
+/_build.py
+/_v*_documents.py
+/_v*_contracts.py
+/_v*_final_polish.py
+/scripts/validate_bundle.py
+/scripts/validate_design_contracts.py

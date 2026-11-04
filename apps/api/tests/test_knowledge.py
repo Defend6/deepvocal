@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from synthetic_corpus import create_corpus
 
 from app.config import Settings
 from app.knowledge.governance import load_bundle, permitted, prepare, sha256
@@ -13,13 +14,13 @@ from app.knowledge.indexes import KnowledgeIndexes, index_identity, lexical_sear
 from app.knowledge.provider import ModelProvider, ProviderDisabled, ProviderError
 from app.knowledge.service import KnowledgeService
 
-ROOT = Path(__file__).resolve().parents[3] / "datasets"
-
 
 def prepared(tmp_path):
     path = tmp_path / "knowledge.json"
-    audit = prepare(ROOT, path)
-    assert audit["selected_chunks"] == 12
+    root = create_corpus(tmp_path / "synthetic-corpus")
+    audit = prepare(root, path)
+    assert audit["selected_chunks"] == 3
+    assert audit["counts"]["BLOCKED"] == 1
     settings = Settings(
         knowledge_bundle=str(path), knowledge_index_manifest=str(tmp_path / "active.json")
     )

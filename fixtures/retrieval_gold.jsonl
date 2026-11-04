@@ -1,6 +1,0 @@
-{"id": "q01", "question": "长音为何不稳", "gold_chunk_ids": ["c01"], "synthetic": true}
-{"id": "q02", "question": "什么是换声区", "gold_chunk_ids": ["c02"], "synthetic": true}
-{"id": "q03", "question": "怎样安排每日练习", "gold_chunk_ids": ["c03"], "synthetic": true}
-{"id": "q04", "question": "录音伴奏过强怎么办", "gold_chunk_ids": ["c04"], "synthetic": true}
-{"id": "q05", "question": "如何看待没有参考的音准分", "gold_chunk_ids": ["c05"], "synthetic": true}
-{"id": "q06", "question": "声音授权撤销后会怎样", "gold_chunk_ids": ["c06"], "synthetic": true}

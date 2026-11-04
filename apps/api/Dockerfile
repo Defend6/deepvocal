@@ -6,8 +6,6 @@ RUN pip install --no-cache-dir -r requirements.lock
 RUN python -c "import soundfile; print(soundfile.__libsndfile_version__)"
 COPY apps/api /app/apps/api
 RUN pip install --no-deps -e /app/apps/api && useradd -m -u 10001 deepvocal
-COPY datasets/project-original /app/datasets/project-original
-COPY datasets/source-registry.json datasets/SUMMARY.json /app/datasets/
 COPY scripts/configure_storage.py /app/scripts/configure_storage.py
 RUN mkdir -p /app/datasets/working /app/datasets/indexes /app/runtime/audio && chown -R deepvocal:deepvocal /app/datasets /app/runtime
 USER deepvocal

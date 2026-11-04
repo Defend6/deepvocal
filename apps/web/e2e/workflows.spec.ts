@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const corpusAvailable = process.env.E2E_CORPUS_AVAILABLE !== "0";
+
 function wav(): Buffer {
   const output = Buffer.alloc(44 + 32000);
   output.write("RIFF", 0);
@@ -71,9 +73,9 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await expect(
     page
       .locator(".current-job")
-      .getByText("模型 API Key 尚未配置", { exact: false }),
+      .getByText(corpusAvailable ? "模型 API Key 尚未配置" : "尚未准备可用的本地知识资料", { exact: false }),
   ).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText("资料预览（尚未生成模型回答）")).toBeVisible();
+  if (corpusAvailable) await expect(page.getByText("资料预览（尚未生成模型回答）")).toBeVisible();
   await page
     .getByText("模型用量与费用 · 付费调用未启用", { exact: true })
     .click();
@@ -185,7 +187,7 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   await question.fill("什么是音准？");
   await send.click();
-  await expect(page.locator(".current-job").getByText("模型 API Key 尚未配置", { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.locator(".current-job").getByText(corpusAvailable ? "模型 API Key 尚未配置" : "尚未准备可用的本地知识资料", { exact: false })).toBeVisible({ timeout: 30000 });
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await question.fill("帮我制定音准练习计划，每天15分钟，共5天");
   await send.click();

@@ -1,15 +1,13 @@
+# Build context includes application code and the storage setup utility only.
+**
+!apps/
+!apps/**
+!scripts/
+!scripts/configure_storage.py
 **/.venv
 **/node_modules
 **/dist
-.git
-.env*
-datasets/**
-!datasets/project-original/
-!datasets/project-original/**
-!datasets/source-registry.json
-!datasets/SUMMARY.json
-_qa
-sources
-outputs
-logs
-backups
+**/__pycache__
+**/.pytest_cache
+**/*.egg-info
+**/*.tsbuildinfo

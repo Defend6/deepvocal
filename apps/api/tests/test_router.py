@@ -84,13 +84,26 @@ def test_health_endpoint_reports_mock_capabilities() -> None:
     assert response.json()["singing_enabled"] is False
 
 
-def test_corpus_status_exposes_review_gate() -> None:
+def test_corpus_status_exposes_review_gate(tmp_path, monkeypatch) -> None:
+    from synthetic_corpus import create_corpus
+
+    from app import main
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        main.settings.model_copy(
+            update={
+                "corpus_root": str(create_corpus(tmp_path / "corpus")),
+            }
+        ),
+    )
     response = client.get("/v1/knowledge/corpus/status")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["corpus_version"] == "seed-20261103-v1"
-    assert payload["document_count"] == 35
-    assert payload["chunk_count"] == 166
+    assert payload["corpus_version"] == "synthetic-test-only"
+    assert payload["document_count"] == 3
+    assert payload["chunk_count"] == 3
     assert payload["production_enabled"] is False
     assert "expert review is incomplete" in payload["production_blockers"]
     assert payload["review_status"] == "NEEDS_REVIEW"

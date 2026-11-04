@@ -49,11 +49,20 @@ def load_bundle(path: str | Path, mode: str) -> dict:
     return bundle
 
 
-def prepare(root: Path, destination: Path, mode: str = "research") -> dict:
+def prepare(
+    root: Path, destination: Path, mode: str = "research", *, allow_missing: bool = False
+) -> dict:
     rows = []
     decisions = []
     original_path = root / "project-original" / "knowledge.json"
-    originals = json.loads(original_path.read_text(encoding="utf-8"))
+    registry_path = root / "source-registry.json"
+    missing = not original_path.exists() and not registry_path.exists()
+    # A clean code checkout may have no corpus. Partial or malformed imports still fail.
+    if missing and allow_missing:
+        originals, registry = [], {"sources": []}
+    else:
+        originals = json.loads(original_path.read_text(encoding="utf-8"))
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
     for entry in originals:
         row = {
             **entry,
@@ -71,7 +80,6 @@ def prepare(root: Path, destination: Path, mode: str = "research") -> dict:
         if permitted(row, mode):
             rows.append(row)
     # Existing collected sources remain separate; their expert/rights status is never fabricated.
-    registry = json.loads((root / "source-registry.json").read_text(encoding="utf-8"))
     for source in registry["sources"]:
         license_name = source.get("license", "UNKNOWN")
         reason = "NOT_CHINESE_REVIEWED_CORPUS"
@@ -115,6 +123,7 @@ def prepare(root: Path, destination: Path, mode: str = "research") -> dict:
         "counts": dict(Counter(item["status"] for item in decisions)),
         "expert_review_completed": False,
         "policy_version": "license-gate-v1",
+        "corpus_available": not missing,
     }
     (destination.parent / "license-audit.json").write_text(
         json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8"

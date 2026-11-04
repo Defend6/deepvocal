@@ -35,6 +35,7 @@ export const labels: Record<string, string> = {
   planned: "计划已保存",
   unavailable: "暂不可用",
   MODEL_API_KEY_REQUIRED: "模型 API Key 尚未配置，当前只展示检索资料预览。",
+  PREPARE_REVIEWED_CORPUS_FIRST: "尚未准备可用的本地知识资料，请导入并审核资料后重新准备知识库。",
   MODEL_BUDGET_NOT_CONFIGURED:
     "尚未确认模型预算与计费配置，本次没有发起付费调用。",
   MODEL_PRICING_NOT_CONFIGURED: "当前模型的计费上界尚未配置，本次调用已阻止。",

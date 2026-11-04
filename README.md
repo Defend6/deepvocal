@@ -1,60 +1,69 @@
 # DeepVocal
 
-基于 LangGraph 的多 Agent 声乐研究工作台。四类 Agent 分别承担知识问答、录音/全曲测评、练习规划与歌声生成能力查询。确定性路由、工具白名单和持久化检查点控制执行边界。
+基于 LangGraph 的多 Agent 声乐研究工作台。默认智能助手通过后端规则识别意图并调度知识、测评、规划、歌声能力四类子图；专业工作台保留结构化操作。
 
-## 当前可用范围（2026-11-04）
+## 技术与当前边界
 
-- PostgreSQL 作业与 outbox、Redis Streams、重试/超时/取消/租约恢复，以及业务产物原子落库。
-- 真正的 LangGraph Supervisor + 四子图，PostgreSQL checkpoint；每个 Agent 仅可调用自身工具。
-- 中文研究资料门控、Milvus 向量检索、Neo4j 实体共现扩展、融合/重排/引用校验与模型 HTTP 适配器。无 Key 时仅展示资料预览。
-- 单声清唱工程测量、长音与显式参考音符评分、分段报告；5～30 分钟约束计划、版本编辑和练习反馈。
-- 声明式 Skill 发现/按需加载/审核发布退役；默认关闭的用户确认偏好记忆、来源与异步压缩。
-- React + TypeScript 前端，风格参考 Look Alive；桌面和手机流程包含真实预签名 PUT 上传。
-- 模型调用按月共享预算并发预占、保守结算、本人费用查询；音频在受限独立进程测量；GraphRAG 提供不调用模型的离线冒烟评测。
-- worker 独立心跳、本人任务诊断面板、本地队列容量/故障汇总，以及默认预览的历史消息维护与通知恢复工具。
+React / TypeScript、FastAPI、LangGraph、PostgreSQL、Redis Streams、S3 兼容对象存储、Milvus 与 Neo4j。支持作业投递、重试/取消、checkpoint、工具白名单、练习计划与反馈，以及受限进程声学测量。
 
-**本机研究版本，不是生产系统。** 按已确认范围，仅本地测试身份；上传资产始终 pending，浏览器不能提交测评。离线声学测试和预置已验证资产的集成测试可运行。真实模型需 Key、供应商计费确认、模型费率与预算配置，再做账户联调；默认阻止付费调用。歌声生成保持禁用。中文草稿尚未经专家审核，没有虚构教学效果或 Token 节省指标。
+当前仅支持本地测试身份。浏览器上传采用预签名 PUT，资产保持 pending，尚不能提交测评。真实模型调用需要 Key、已确认的费率和预算配置；默认禁用付费。歌声生成服务未接入。工程测量和研究资料不代表教学效果验证。
 
-## 推荐：本地编辑，Docker 运行
+## 仓库范围
 
-在项目根目录，复制 `.env.example` 为 `.env`，保留本地示例配置。已有 `.env` 请勿覆盖。
+- `apps/`：应用、数据库迁移与测试；测试自行生成合成样例。
+- `infra/`：Docker Compose 配置。
+- `scripts/`：运行、备份恢复、数据处理和仓库检查工具。
+- `contracts/runtime-openapi.json`：由实际 API 导出的工程契约。
+- `.github/`、依赖锁文件及配置示例：构建和 CI。
+
+项目书、详细开发文档、参考资料、历史原型、真实语料、训练/评测数据、用户音频、索引、运行结果和密钥只在本地或独立数据存储管理，不属于代码发布内容。数据处理脚本可以提交，其输入和生成结果不提交。不要用 `git add -f` 绕过数据忽略规则。旧提交历史未重写，可能包含整理前的文件。
+
+## Docker 运行
+
+需要 Docker Desktop（Linux 容器）。复制 `.env.example` 为 `.env`，已有文件不覆盖，然后在项目根目录运行：
 
 ```powershell
 docker compose -f infra/docker-compose.yml -f infra/compose.app.yml up -d --build --wait
 ```
 
-浏览器打开 `http://127.0.0.1:8080`，API 文档为 `http://127.0.0.1:8000/docs`。启动会迁移数据库、准备原创中文研究资料并配置对象存储 CORS。所有公开端口仅绑定回环地址。密钥通过本地环境传入，不提交 Git。
+页面：`http://127.0.0.1:8080`；API：`http://127.0.0.1:8000/docs`。端口只绑定本机。
 
-## 本地调试
+镜像只包含代码，知识资料在运行时从项目根目录的 `datasets/` 只读挂载；该目录被 Git 忽略。也可在 `.env` 设置 `DEEPVOCAL_CORPUS_DIR=D:/deepvocal/datasets` 使用其他本地路径。不要挂载到数据库或索引卷上。
 
-需 Python 3.12、Node.js 24、Docker Desktop（Linux 容器）。项目及缓存、浏览器测试产物均放在 `D:\deepvocal`。
+全新代码检出没有真实语料仍可启动，规划与其他不依赖知识资料的功能可用；知识问答显示资料未准备，语料状态接口返回受控 503。不会自动下载语料、生成虚构回答或调用付费模型。空挂载会准备空知识包，不复用旧知识包冒充当前数据；数据只导入一半或 JSON 损坏会阻止准备。
 
-```powershell
-.\scripts\dev.ps1 setup
+## 本地知识资料接入
+
+现有数据继续保存在本地 `D:\deepvocal\datasets`。数据导入器当前要求：
+
+```text
+datasets/                         # 本地目录，不提交
+  project-original/knowledge.json # [{id,title,text,entities:[...]}]
+  source-registry.json            # {sources:[{source_id,license,...}]}
+  SUMMARY.json                    # 语料状态元数据
 ```
 
-分别在三个终端运行 `scripts/dev.ps1 api`、`scripts/dev.ps1 worker`、`scripts/dev.ps1 web`，打开 `http://127.0.0.1:5173`。若已启动整套 Compose，先停止其中 api/worker/web，防止 8000 端口冲突及混用代码版本；保留数据库服务与卷。
+准备逻辑不会将已有抓取材料自动认证为已审核知识。研究种子保留未审核标识；生产许可、内容审核及引用要求仍需分别满足。`SUMMARY.json` 应包含 version、status、document_count、chunk_count、entity_count、candidate_relation_count 及真实审核/索引状态；不应伪造统计。原始数据与运行知识包、索引分别管理。
+
+更新本地输入后重新准备：
 
 ```powershell
-docker compose -f infra/docker-compose.yml -f infra/compose.app.yml stop api worker web
+docker compose -f infra/docker-compose.yml -f infra/compose.app.yml run --rm migrate python -m app.knowledge.cli prepare
+```
+
+准备过程不计算模型向量。模型配置和审核条件满足后才可运行 `python -m app.knowledge.cli ingest`；变更语料或 embedding 模型需重建索引。`prepare --allow-missing` 仅用于允许无数据的开发启动，不忽略损坏或部分导入的数据。
+
+## 调试与测试
+
+本地调试需要 Python 3.12、Node.js 24 和 Docker。执行 `scripts/dev.ps1 setup`，然后在三个终端分别运行 `scripts/dev.ps1 api`、`scripts/dev.ps1 worker`、`scripts/dev.ps1 web`，打开 `http://127.0.0.1:5173`。若整套 Compose 已运行，先停止其中 api、worker、web，保留基础服务及数据卷，以免端口冲突和混用代码版本。
+
+```powershell
 .\scripts\dev.ps1 test
-.\scripts\dev.ps1 e2e
+.venv\Scripts\python.exe scripts/check_repository.py
 ```
 
-E2E 需要 API、worker、前端及 RustFS 已启动。测试 Redis 使用 DB15；不要把它改成真实业务队列。完整复现、备份恢复及验证说明见 [运行与验收记录](docs/39_运行复现与验收边界.md)。
+本地完整测试使用独立 `deepvocal_test` 数据库和 Redis DB15，包括可选 Milvus/Neo4j 集成；CI 使用临时 PostgreSQL/Redis，不依赖私有文档或语料。测试只验证工程契约，不代表真实数据集或专家效果评测。
 
-`dev.ps1 test` 使用独立 `deepvocal_test` 数据库，避免业务worker消费测试任务。本地故障定位、队列保留与恢复命令见 [任务监控与维护](docs/41_任务监控队列维护与恢复.md)。
+浏览器回归需要已启动的 API、worker、网页和对象存储。有本地语料时运行 `scripts/dev.ps1 e2e`；无资料时设置 `E2E_CORPUS_AVAILABLE=0`，校验知识资料缺失提示，其他流程照常测试。整套 Compose 的入口使用 `E2E_BASE_URL=http://127.0.0.1:8080`。
 
-## 文档和代码的对应关系
-
-[阅读导航](docs/00_阅读导航与交付边界.md) / [真实进度与未完成项](docs/31_后续开发路线与未完成项.md) / [Skill 与 Memory](docs/38_Skill与Memory实现记录.md)。
-
-模型启用检查、预算单位、音频进程限制及离线评测命令见 [预算与进程隔离实施记录](docs/40_模型预算音频进程与离线评测.md)。实际账本为月度人民币分预算，与完整设计中的日预算表仍有阶段差异。
-
-`contracts/openapi.json`、`database/schema.sql` 是完整目标设计；实际服务器契约为 `contracts/runtime-openapi.json` 和 `apps/api/migrations/`。两者尚未完全一致，不能用设计 DDL 覆盖运行数据库。评分仍遵循 `contracts/scoring-rules.json`。`prototype/` 为历史原型，实际前端在 `apps/web/`。
-
-## 数据与发布
-
-只将明确授权的研究资料纳入对应分区；准备库、限制性来源和原创工程草稿均不等于生产知识库。用户音频、备份、Key、生成索引与运行状态不得提交。已有语料的许可状态见 [GraphRAG 实现记录](docs/36_GraphRAG研究链路与许可处理.md)。
-
-当前 GitHub 仓库为私有，迭代推送 `feature/platform-skeleton`；默认分支当前也是该分支。后续经独立验收再决定合并/公开，不自动更改仓库可见性。
+备份：`scripts/backup.ps1`；恢复校验：`scripts/restore-test.ps1 -BackupFile <本地备份路径>`。目前只覆盖 PostgreSQL，不代表对象和图/向量索引的完整灾备。密钥通过本地环境配置，勿提交 `.env`。
