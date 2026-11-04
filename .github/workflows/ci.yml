@@ -27,6 +27,7 @@ jobs:
       - run: pip install -r apps/api/requirements.lock -e 'apps/api[dev]'
       - run: python -m alembic -c apps/api/alembic.ini upgrade head
       - run: ruff check apps/api/app apps/api/tests
+      - run: mkdir -p _qa
       - run: python -m pytest -q --basetemp ../../_qa/ci-pytest
         working-directory: apps/api
       - run: python scripts/validate_design_contracts.py --repository-only

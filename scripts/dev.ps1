@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
 $pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
+New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot '_qa') | Out-Null
 $env:npm_config_cache = Join-Path $projectRoot '_qa\npm-cache'
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $projectRoot '_qa\playwright-browsers'
 function Assert-Exit { if ($LASTEXITCODE -ne 0) { throw "Command failed: $LASTEXITCODE" } }
