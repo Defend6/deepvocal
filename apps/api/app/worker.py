@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import logging
+import sys
 import uuid
 from collections.abc import Awaitable, Callable
 
@@ -240,4 +241,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
     logging.basicConfig(level=logging.INFO)
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(run(parser.parse_args().once))

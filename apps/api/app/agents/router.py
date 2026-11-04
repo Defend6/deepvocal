@@ -15,8 +15,26 @@ class RuleRouter:
 
     def route(self, text: str, explicit_action: str | None = None) -> RouteDecision:
         normalized = text.strip().lower()
-        if explicit_action == "singing.generate":
-            return RouteDecision("singing", "explicit action", 1.0, ("singing.capabilities",), True)
+        explicit = {
+            "knowledge.ask": ("knowledge", ("knowledge.retrieve",)),
+            "assessment.submit": ("assessment", ("audio.inspect", "assessment.submit")),
+            "planning.create": ("planning", ("reports.read", "plans.create")),
+            "singing.generate": ("singing", ("singing.capabilities",)),
+        }
+        if explicit_action:
+            if explicit_action not in explicit:
+                return RouteDecision("clarify", "unknown explicit action", 0.0, ())
+            agent, tools = explicit[explicit_action]
+            return RouteDecision(agent, "explicit action", 1.0, tools, agent == "singing")
+        if any(
+            k in normalized
+            for k in ("生成歌声", "生成个性化歌声", "个性化歌声", "歌声生成", "唱出来")
+        ):
+            return RouteDecision(
+                "singing", "singing generation intent", 0.88, ("singing.capabilities",), True
+            )
+        if any(k in normalized for k in ("什么是", "为什么", "怎么发声", "如何", "区别")):
+            return RouteDecision("knowledge", "vocal theory question", 0.9, ("knowledge.retrieve",))
         if any(k in normalized for k in ("录音", "音频", "跑调", "音准", "音高", "噪声", "测评")):
             return RouteDecision(
                 "assessment",
@@ -27,13 +45,6 @@ class RuleRouter:
         if any(k in normalized for k in ("计划", "练习安排", "每天", "训练")):
             return RouteDecision(
                 "planning", "practice planning intent", 0.90, ("reports.read", "plans.create")
-            )
-        if any(
-            k in normalized
-            for k in ("生成歌声", "生成个性化歌声", "个性化歌声", "歌声生成", "唱出来")
-        ):
-            return RouteDecision(
-                "singing", "singing generation intent", 0.88, ("singing.capabilities",), True
             )
         if any(k in normalized for k in ("什么是", "为什么", "怎么发声", "共鸣", "气息", "声区")):
             return RouteDecision("knowledge", "vocal theory intent", 0.90, ("knowledge.retrieve",))

@@ -1,0 +1,53 @@
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg import AsyncConnection
+from psycopg.rows import dict_row
+
+from app.agents.graph import ToolRegistry, build_graph, thread_config
+from app.config import get_settings
+
+
+async def execute_job(job: dict) -> dict:
+    from app.business import assessment_tool, knowledge_tool, planning_tool, singing_tool
+
+    handlers = {
+        "knowledge.retrieve": knowledge_tool,
+        "assessment.submit": assessment_tool,
+        "plans.create": planning_tool,
+        "singing.capabilities": singing_tool,
+    }
+    actions = {
+        "knowledge": "knowledge.ask",
+        "assessment": "assessment.submit",
+        "planning": "planning.create",
+        "singing": "singing.generate",
+    }
+    state = {
+        "owner_id": str(job["owner_id"]),
+        "job_id": str(job["id"]),
+        "text": job["request"].get("input", {}).get("text", ""),
+        "explicit_action": actions[job["kind"]],
+        "input": {
+            **job["request"].get("input", {}),
+            "input_asset_id": job["request"].get("input_asset_id"),
+        },
+    }
+    dsn = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+    async with await AsyncConnection.connect(
+        dsn, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    ) as conn:
+        saver = AsyncPostgresSaver(conn)
+        await saver.setup()
+        graph = build_graph(ToolRegistry(handlers), saver)
+        config = thread_config(state["owner_id"], state["job_id"])
+        # Re-run failed pending nodes, reuse completed checkpoints for retry idempotency.
+        snapshot = await graph.aget_state(config)
+        if snapshot.values and not snapshot.next:
+            result = snapshot.values
+        else:
+            result = await graph.ainvoke(None if snapshot.values else state, config)
+        return {
+            "agent": result["agent"],
+            "route_reason": result["route_reason"],
+            "tool_trace": result.get("tool_trace", []),
+            **result["output"],
+        }

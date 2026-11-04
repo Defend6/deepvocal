@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
 from app.agents.router import RuleRouter
+from app.assistant import router as assistant_router
 from app.config import get_settings
 from app.identity import Session, User
 from app.jobs import router as jobs_router
@@ -22,6 +23,7 @@ settings = get_settings()
 router = RuleRouter()
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.include_router(jobs_router)
+app.include_router(assistant_router)
 
 
 @app.get("/health", response_model=HealthResponse)
