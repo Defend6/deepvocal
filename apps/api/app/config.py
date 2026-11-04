@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     max_audio_size_bytes: int = 104857600
     upload_expiry_seconds: int = 3600
     database_url: str = "postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal"
+    redis_url: str = "redis://127.0.0.1:16379/0"
     corpus_root: str = str(Path(__file__).resolve().parents[3] / "datasets")
     s3_endpoint: str = "http://127.0.0.1:9000"
     s3_bucket: str = "deepvocal-private"
