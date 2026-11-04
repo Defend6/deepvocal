@@ -29,7 +29,12 @@ async def execute_job(job: dict) -> dict:
         "owner_id": str(job["owner_id"]),
         "job_id": str(job["id"]),
         "text": job["request"].get("input", {}).get("text", ""),
-        "explicit_action": actions[job["kind"]],
+        "explicit_action": (
+            None
+            if job["request"].get("routing", {}).get("mode") == "automatic"
+            else actions[job["kind"]]
+        ),
+        "expected_agent": job["kind"],
         "input": {
             **job["request"].get("input", {}),
             "input_asset_id": job["request"].get("input_asset_id"),

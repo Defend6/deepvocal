@@ -24,6 +24,51 @@ def test_unknown_intent_clarifies() -> None:
     assert RuleRouter().route("你好").agent == "clarify"
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("如何制定练习计划", "planning"),
+        ("帮我制定音准练习计划，每天10分钟，共3天", "planning"),
+        ("如何分析这段录音", "assessment"),
+        ("音准", "knowledge"),
+        ("录音中音高偏差的原理是什么", "knowledge"),
+        ("什么是歌声生成", "knowledge"),
+        ("请分析我的录音，并制定练习计划", "clarify"),
+        ("生成歌声然后制定计划", "clarify"),
+        ("请给我生成一段歌声", "singing"),
+        ("帮我安排一个音准练习", "planning"),
+        ("帮我看看有没有跑调", "assessment"),
+    ],
+)
+def test_action_intents_do_not_confuse_theory_or_multiple_requests(text, expected):
+    assert RuleRouter().route(text).agent == expected
+
+
+def test_plan_constraints_are_extracted_or_clarified_instead_of_silently_ignored():
+    from app.agents.intent_input import planning_input
+
+    values, question = planning_input("帮我制定音准练习计划，每天十分钟，共三天")
+    assert question is None
+    assert (values["goal"], values["minutes"], values["days"]) == ("pitch", 10, 3)
+    for request in (
+        "每天60分钟的计划",
+        "每天10分钟或20分钟的计划",
+        "两周的计划",
+        "每天10.5分钟的计划",
+        "音准和节奏练习计划",
+        "根据上次报告制定计划",
+        "高音练习计划",
+        "每天五到十分钟的计划",
+        "每天-10分钟的计划",
+        "每天十十分钟的计划",
+        "每天15分的计划",
+        "每天15min的计划",
+    ):
+        assert planning_input(request)[1], request
+    assert planning_input("嗓子疼，帮我制定计划")[0]["discomfort"] is True
+    assert planning_input("没有疼痛，帮我制定计划")[0]["discomfort"] is False
+
+
 def test_router_endpoint_returns_structured_decision() -> None:
     response = client.post("/v1/router/decide", json={"text": "请分析这段录音有没有跑调"})
     assert response.status_code == 200

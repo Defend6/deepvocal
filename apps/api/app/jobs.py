@@ -24,7 +24,9 @@ class JobCreate(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$")
 
 
-async def enqueue(session: AsyncSession, owner: str, request: JobCreate) -> dict:
+async def enqueue(
+    session: AsyncSession, owner: str, request: JobCreate, *, automatic: bool = False
+) -> dict:
     try:
         if request.kind == "knowledge":
             from app.knowledge.policy import KnowledgeInput
@@ -41,6 +43,9 @@ async def enqueue(session: AsyncSession, owner: str, request: JobCreate) -> dict
     except ValidationError as exc:
         raise HTTPException(422, "invalid structured job input: " + str(exc)) from exc
     body = request.model_dump(mode="json", exclude={"idempotency_key"})
+    # Server-only provenance, outside client-controlled input. Included in idempotency hash.
+    if automatic:
+        body["routing"] = {"mode": "automatic", "version": "rules-v2"}
     if len(json.dumps(body, ensure_ascii=False).encode()) > 65536:
         raise HTTPException(413, "job input exceeds 64 KiB")
     digest = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()

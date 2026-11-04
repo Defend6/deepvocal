@@ -20,7 +20,8 @@ class AgentState(TypedDict, total=False):
     owner_id: str
     job_id: str
     text: str
-    explicit_action: str
+    explicit_action: str | None
+    expected_agent: str
     input: dict
     skill_context: dict
     agent: str
@@ -47,10 +48,23 @@ class ToolRegistry:
         return await self.handlers[name](state)
 
 
+def supervisor(state: AgentState) -> dict:
+    route = RuleRouter().route(state.get("text", ""), state.get("explicit_action"))
+    if state.get("expected_agent") and route.agent != state["expected_agent"]:
+        raise ToolBoundaryError("admission and execution routes differ; no tool called")
+    return {"agent": route.agent, "route_reason": route.reason, "tool_trace": []}
+
+
+def build_routing_graph():
+    """Admission uses the same LangGraph supervisor, without executing business tools."""
+    graph = StateGraph(AgentState)
+    graph.add_node("supervisor", supervisor)
+    graph.add_edge(START, "supervisor")
+    graph.add_edge("supervisor", END)
+    return graph.compile()
+
+
 def build_graph(registry: ToolRegistry, checkpointer=None):
-    def supervisor(state: AgentState) -> dict:
-        route = RuleRouter().route(state.get("text", ""), state.get("explicit_action"))
-        return {"agent": route.agent, "route_reason": route.reason, "tool_trace": []}
 
     def subgraph(agent: str, tool: str):
         async def boundary(state: AgentState) -> dict:
@@ -80,7 +94,7 @@ def build_graph(registry: ToolRegistry, checkpointer=None):
         lambda _: {
             "output": {
                 "status": "clarify",
-                "message": "请选择理论答疑、录音测评、练习规划或歌声生成。",
+                "message": "请补充希望解决的具体问题，例如解释一个声乐概念、分析自己的录音，或安排几天练习。一次先描述一个目标即可。",
             }
         },
     )

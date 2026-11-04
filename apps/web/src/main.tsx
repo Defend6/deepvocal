@@ -232,13 +232,17 @@ function ResultView({ result }: { result: Result }) {
         <Evidence items={result.evidence_preview} preview />
       )}
       {result.plan_id && (
-        <p className="notice">计划已保存，可在「练习规划」中编辑并记录反馈。</p>
+        <p className="notice">计划已保存，可在下方「我的计划」中查看、编辑并记录反馈。</p>
       )}
     </div>
   );
 }
 
 function App() {
+  const [mode, setMode] = useState<"assistant" | "expert">(() =>
+    localStorage.getItem("dv.mode") === "expert" ? "expert" : "assistant",
+  );
+  const intelligent = mode === "assistant";
   const [selected, setSelected] = useState<Agent>("knowledge");
   const [identity, setIdentity] = useState(
     sessionStorage.getItem("dv.identity") || "local|learner",
@@ -380,6 +384,7 @@ function App() {
   }
 
   async function submit(automatic = false) {
+    const scope = epoch.current;
     const text =
       question.trim() ||
       (selected === "planning"
@@ -408,6 +413,7 @@ function App() {
               ...(reportId ? { report_id: reportId } : {}),
             }
           : {},
+      ...(automatic && upload ? { input_asset_id: upload.id } : {}),
     };
     const signature = JSON.stringify(body);
     if (submitKey.current?.signature !== signature)
@@ -421,12 +427,16 @@ function App() {
       method: "POST",
       body: JSON.stringify({ ...body, idempotency_key: submitKey.current.key }),
     });
+    if (scope !== epoch.current) return;
     submitKey.current = null;
     if (response.job) {
       setCurrent(response.job);
-      setSelected(response.agent!);
+      if (!intelligent) setSelected(response.agent!);
       await refresh();
-    } else setNotice(response.message ?? response.status);
+    } else {
+      setCurrent(null);
+      setNotice(response.message ?? response.status);
+    }
   }
 
   async function uploadFile(file: File) {
@@ -594,7 +604,7 @@ function App() {
             >
               进入练声工作台 <span>↗</span>
             </button>
-            <a className="pill-secondary" href="#capability-note">
+            <a className="pill-secondary" href={intelligent ? "#workbench" : "#capability-note"}>
               认识你的 AI 搭档
             </a>
           </div>
@@ -627,19 +637,25 @@ function App() {
         </button>
         <small>仅供本机测试，切换后展示该身份的数据。</small>
       </div>
-      <section id="workbench" className="workspace">
+      <section id="workbench" className={`workspace ${intelligent ? "assistant-workspace" : ""}`}>
         <div className="workspace-chrome">
-          <span className="window-dots">
-            <i />
-            <i />
-            <i />
-          </span>
+          <div className="mode-switch" role="group" aria-label="工作模式">
+            {([['assistant', '智能助手'], ['expert', '专业工作台']] as const).map(([value, label]) => (
+              <button key={value} aria-pressed={mode === value} disabled={busy}
+                onClick={() => {
+                  setMode(value);
+                  localStorage.setItem("dv.mode", value);
+                  setNotice("");
+                  setError("");
+                }}>{label}</button>
+            ))}
+          </div>
           <span>DeepVocal Workspace</span>
-          <span>
+          {!intelligent && <span>
             <Brain size={13} /> Supervisor
-          </span>
+          </span>}
         </div>
-        <aside className="sidebar">
+        {!intelligent && <aside className="sidebar">
           <p className="section-label">你的 AI 搭档</p>
           {agents.map(({ id, label, icon: Icon, detail }) => (
             <button
@@ -663,14 +679,14 @@ function App() {
               当前内容不替代专业声乐教学。
             </small>
           </div>
-        </aside>
+        </aside>}
         <section className="panel">
           <div className="panel-head">
             <div>
-              <p className="eyebrow">{selected.toUpperCase()} AGENT</p>
-              <h2>{active.label}</h2>
+              <p className="eyebrow">{intelligent ? "YOUR VOICE, YOUR PACE" : `${selected.toUpperCase()} AGENT`}</p>
+              <h2>{intelligent ? "今天，想怎样练好声音？" : active.label}</h2>
             </div>
-            <active.icon size={25} />
+            {intelligent ? <Mic2 size={25} /> : <active.icon size={25} />}
           </div>
           <div className="panel-content">
             {error && (
@@ -689,12 +705,41 @@ function App() {
                 {notice}
               </p>
             )}
-            {selected === "knowledge" && (
+            {intelligent && <>
+              <p className="intro">直接说出你的问题或目标，也可以附上自己的录音。我们会根据内容安排处理；信息不足时会请你补充。</p>
+              <div className="assistant-examples">
+                {['什么是胸声和头声？', '帮我制定音准练习计划，每天10分钟，共3天', '请分析我的录音有没有跑调'].map(text => (
+                  <button className="secondary" key={text} disabled={busy} onClick={() => setQuestion(text)}>{text}</button>
+                ))}
+              </div>
+              <div className="composer">
+                <label htmlFor="assistant-question">说说你的问题或目标</label>
+                <textarea id="assistant-question" rows={4} maxLength={4000} value={question}
+                  placeholder="例如：帮我安排3天的音准练习，每天10分钟…"
+                  onChange={event => setQuestion(event.target.value)} />
+                <div className="assistant-attachment">
+                  <label>附上清唱录音（可选）
+                    <input aria-label="附上清唱录音" type="file" accept="audio/*,.wav,.flac,.mp3,.m4a" disabled={busy}
+                      onChange={event => {
+                        const file = event.target.files?.[0];
+                        if (file) void perform(() => uploadFile(file));
+                        event.target.value = "";
+                      }} />
+                  </label>
+                  {upload && <p className="muted">{upload.filename} · 待校验（{upload.status}）
+                    <button className="text-button" disabled={busy} onClick={() => setUpload(null)}>移除附件</button></p>}
+                  <small className="muted">附件仅用于录音分析；当前可上传，完成校验开放后才能测评。</small>
+                </div>
+                <div className="actions"><button disabled={busy || !question.trim()} onClick={() => void perform(() => submit(true))}>{busy ? "提交中…" : "发送"}</button></div>
+                <p className="muted">练习计划可注明目标、每天分钟数与天数；未注明时采用基础练习、每天10分钟、共3天的模板。需要精确设置时可切换专业工作台。</p>
+              </div>
+            </>}
+            {!intelligent && selected === "knowledge" && (
               <p className="intro">
                 提出声乐概念或练习问题。回答须有中文资料支撑；未配置模型时，可查看检索资料预览。
               </p>
             )}
-            {selected === "assessment" && (
+            {!intelligent && selected === "assessment" && (
               <>
                 <p className="intro">
                   上传本人单人清唱。无参考自由演唱只提供技术测量，有参考曲目与明确长音任务可按规则计算练习参考分。
@@ -752,7 +797,7 @@ function App() {
                 )}
               </>
             )}
-            {selected === "planning" && (
+            {!intelligent && selected === "planning" && (
               <>
                 <p className="intro">
                   选择练习目标与可用时间，生成含休息的可编辑模板。提供真实反馈，逐步积累练习记录。
@@ -822,7 +867,7 @@ function App() {
                 </label>
               </>
             )}
-            {selected === "singing" && (
+            {!intelligent && selected === "singing" && (
               <div className="feature-note">
                 <Music2 size={38} />
                 <h3>歌声生成 · 接口预留</h3>
@@ -832,7 +877,7 @@ function App() {
                 <small>{capabilities.singing?.reason}</small>
               </div>
             )}
-            {selected !== "assessment" && (
+            {!intelligent && selected !== "assessment" && (
               <div className="composer">
                 <label htmlFor="question">
                   {selected === "planning"
@@ -879,7 +924,7 @@ function App() {
               <section aria-live="polite" className="current-job">
                 <div className="job-heading">
                   <h3>
-                    {agents.find((agent) => agent.id === current.kind)?.label} ·{" "}
+                    {intelligent ? "本次处理" : agents.find((agent) => agent.id === current.kind)?.label} ·{" "}
                     {human(current.status)}
                   </h3>
                   {!done(current) && (
@@ -903,13 +948,13 @@ function App() {
                     </button>
                   )}
                 </div>
-                <small className="muted">
+                {!intelligent && <small className="muted">
                   任务 {current.id.slice(0, 8)} · 尝试 {current.attempt} · 追踪{" "}
                   {current.trace_id.slice(0, 8)}
-                </small>
+                </small>}
                 {current.status === "QUEUED" && (
                   <p className="muted">
-                    等待后台任务处理。如长时间未开始，请检查 worker 是否运行。
+                    {intelligent ? "已收到，正在等待处理。你可以在任务记录中再次查看。" : "等待后台任务处理。如长时间未开始，请检查 worker 是否运行。"}
                   </p>
                 )}
                 {current.error_code && (
@@ -918,7 +963,7 @@ function App() {
                 {current.result && <ResultView result={current.result} />}
               </section>
             )}
-            {selected === "planning" && (
+            {(intelligent || selected === "planning") && (
               <section>
                 <h3>
                   我的计划 <small>{plans.length}</small>
@@ -1164,14 +1209,14 @@ function App() {
           )}
         </div>
       </section>
-      <Operations
+      {!intelligent && <><Operations
         key={`operations-${identity}`}
         identity={identity}
         jobRevision={jobs
           .map((job) => `${job.id}:${job.status}:${job.attempt}`)
           .join(",")}
       />
-      <Governance key={identity} identity={identity} completedJobs={jobs} />
+      <Governance key={identity} identity={identity} completedJobs={jobs} /></>}
       <footer>
         DeepVocal · 本地研究工作台 · 资料与工程参考分均保留可用条件
       </footer>

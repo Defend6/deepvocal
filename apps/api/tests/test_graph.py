@@ -74,6 +74,29 @@ def test_graph_resume_does_not_rerun_successful_tool():
     asyncio.run(run())
 
 
+def test_automatic_route_mismatch_stops_before_any_tool():
+    async def run():
+        calls = []
+
+        async def handler(state):
+            calls.append(state)
+            return {"status": "unexpected"}
+
+        graph = build_graph(ToolRegistry({"plans.create": handler}))
+        with pytest.raises(ToolBoundaryError, match="admission and execution"):
+            await graph.ainvoke(
+                {
+                    "owner_id": "owner",
+                    "job_id": "job",
+                    "text": "制定音准练习计划",
+                    "expected_agent": "knowledge",
+                }
+            )
+        assert calls == []
+
+    asyncio.run(run())
+
+
 def test_postgres_checkpoint_survives_new_graph_instance():
     if not os.getenv("TEST_DATABASE_URL"):
         pytest.skip("requires PostgreSQL")

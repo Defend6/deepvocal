@@ -1006,13 +1006,15 @@
             "type": "string",
             "maxLength": 4000,
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Text"
           },
           "action": {
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 80
+                "maxLength": 80,
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -1041,6 +1043,7 @@
             "type": "string",
             "maxLength": 128,
             "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]+$",
             "title": "Idempotency Key"
           }
         },

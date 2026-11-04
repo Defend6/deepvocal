@@ -417,12 +417,55 @@ h4 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 40px;
+  min-height: 52px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 8px;
   padding: 0 20px;
   background: #fafafa;
   border-bottom: 1px solid var(--line);
   font-size: 10px;
   color: #888;
+}
+.assistant-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mode-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #e6e6e6;
+  border-radius: 999px;
+  background: #efefef;
+}
+.mode-switch button {
+  padding: 7px 12px;
+  font-size: 11px;
+  background: transparent;
+  color: #717171;
+}
+.mode-switch button[aria-pressed="true"] {
+  background: #202020;
+  color: white;
+}
+.assistant-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.assistant-examples button {
+  font-size: 11px;
+  text-align: left;
+  white-space: normal;
+}
+.assistant-attachment {
+  padding: 2px 14px 12px;
+  border: 1px dashed #e2e2e2;
+  border-radius: 14px;
+  margin-top: 12px;
+}
+.assistant-attachment input {
+  width: 100%;
 }
 .workspace-chrome > span:last-child {
   display: flex;

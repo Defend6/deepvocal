@@ -33,6 +33,7 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
     identity,
   );
   await page.goto("/");
+  await page.getByRole("button", { name: "专业工作台", exact: true }).click();
   await expect(
     page.getByText("本地服务已连接", { exact: false }),
   ).toBeVisible();
@@ -160,5 +161,71 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await expect(
     diagnostic.getByText(`完整任务编号：${failedJob.id}`, { exact: true }),
   ).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("beginner mode delegates routing and keeps clarification, plans and pending audio usable", async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  const requests: Record<string, unknown>[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("request", req => {
+    if (req.url().endsWith("/v1/assistant") && req.method() === "POST") requests.push(req.postDataJSON());
+  });
+  await page.addInitScript((identity) => sessionStorage.setItem("dv.identity", identity), `e2e|${crypto.randomUUID()}`);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "智能助手", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await expect(page.locator(".operations")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "自动识别意图", exact: true })).toHaveCount(0);
+  const question = page.getByLabel("说说你的问题或目标");
+  const send = page.getByRole("button", { name: "发送", exact: true });
+  await question.fill("你好");
+  await send.click();
+  await expect(page.getByRole("status")).toContainText("请补充希望解决的具体问题");
+  await expect(page.locator(".job-list .history-item")).toHaveCount(0);
+  await question.fill("什么是音准？");
+  await send.click();
+  await expect(page.locator(".current-job").getByText("模型 API Key 尚未配置", { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await question.fill("帮我制定音准练习计划，每天15分钟，共5天");
+  await send.click();
+  const plan = page.locator(".plan-list").getByRole("button", { name: /参考音模唱 · 15分钟 × 5天/ });
+  await expect(plan).toBeVisible({ timeout: 30000 });
+  await plan.click();
+  await expect(page.getByText("编辑计划 · v1", { exact: true })).toBeVisible();
+  await question.fill("帮我制定每天60分钟的练习计划");
+  await send.click();
+  await expect(page.getByRole("status")).toContainText("5–30 分钟");
+  await question.fill("请分析我的录音");
+  await send.click();
+  await expect(page.getByRole("status")).toContainText("请先附上");
+  await page.getByLabel("附上清唱录音", { exact: true }).setInputFiles({ name: "beginner-synthetic.wav", mimeType: "audio/wav", buffer: wav() });
+  await expect(page.getByText("beginner-synthetic.wav · 待校验（pending）", { exact: false })).toBeVisible({ timeout: 30000 });
+  await send.click();
+  await expect(page.getByRole("status")).toContainText("本次不会创建测评任务");
+  await page.getByRole("button", { name: "移除附件", exact: true }).click();
+  await question.fill("帮我生成个性化歌声");
+  await send.click();
+  await expect(page.locator(".current-job").getByText("歌声生成接口已预留，外部服务尚未配置。", { exact: true })).toBeVisible({ timeout: 30000 });
+  expect(requests.length).toBeGreaterThan(5);
+  for (const body of requests) {
+    expect(body).not.toHaveProperty("action");
+    expect(body).not.toHaveProperty("kind");
+    expect(body.input).toEqual({});
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.screenshot({ path: `../../_qa/assistant-${testInfo.project.name}.png`, fullPage: true });
+  const count = await page.locator(".job-list .history-item").count();
+  await page.getByRole("button", { name: "专业工作台", exact: true }).click();
+  await expect(page.locator(".sidebar .agent")).toHaveCount(4);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "专业工作台", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".job-list .history-item")).toHaveCount(count);
+  await page.getByRole("button", { name: "智能助手", exact: true }).click();
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await page.getByLabel("本地测试身份").fill(`e2e|${crypto.randomUUID()}`);
+  await page.getByRole("button", { name: "切换身份", exact: true }).click();
+  await expect(page.locator(".job-list .history-item")).toHaveCount(0);
+  await expect(page.locator(".plan-list button")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
