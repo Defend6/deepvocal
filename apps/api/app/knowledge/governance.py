@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections import Counter
+from pathlib import Path
+
+
+def sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def permitted(row: dict, mode: str) -> bool:
+    if row.get("text_sha256") != sha256(row.get("text", "")):
+        return False
+    if row.get("language") != "zh" or not row.get("url") or not row.get("license_evidence"):
+        return False
+    if not row.get("license_verified") or row.get("review_status") == "BLOCKED":
+        return False
+    if mode == "research":
+        return row.get("license") in {
+            "PROJECT-ORIGINAL-INTERNAL",
+            "CC-BY-SA-4.0",
+            "CC-BY-4.0",
+            "CC0-1.0",
+        }
+    return (
+        mode == "production"
+        and row.get("review_status") == "APPROVED"
+        and row.get("expert_reviewed") is True
+        and row.get("production_enabled") is True
+        and row.get("license") in {"CC-BY-4.0", "CC0-1.0"}
+    )
+
+
+def load_bundle(path: str | Path, mode: str) -> dict:
+    bundle = json.loads(Path(path).read_text(encoding="utf-8"))
+    if bundle.get("mode") != mode:
+        raise ValueError("knowledge mode differs from prepared bundle")
+    rows = bundle["chunks"]
+    if len({row["id"] for row in rows}) != len(rows) or not all(
+        permitted(row, mode) for row in rows
+    ):
+        raise ValueError("knowledge bundle contains unapproved or modified chunks")
+    fingerprint = sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False))
+    if bundle.get("fingerprint") != fingerprint:
+        raise ValueError("knowledge fingerprint mismatch")
+    return bundle
+
+
+def prepare(root: Path, destination: Path, mode: str = "research") -> dict:
+    rows = []
+    decisions = []
+    original_path = root / "project-original" / "knowledge.json"
+    originals = json.loads(original_path.read_text(encoding="utf-8"))
+    for entry in originals:
+        row = {
+            **entry,
+            "source_id": "project-original",
+            "language": "zh",
+            "license": "PROJECT-ORIGINAL-INTERNAL",
+            "license_verified": True,
+            "license_evidence": "项目内原创工程知识草稿；只授权当前项目内部研究，未授予第三方资料许可。",
+            "url": f"project://deepvocal/knowledge/{entry['id']}",
+            "review_status": "NEEDS_REVIEW",
+            "expert_reviewed": False,
+            "production_enabled": False,
+            "text_sha256": sha256(entry["text"]),
+        }
+        if permitted(row, mode):
+            rows.append(row)
+    # Existing collected sources remain separate; their expert/rights status is never fabricated.
+    registry = json.loads((root / "source-registry.json").read_text(encoding="utf-8"))
+    for source in registry["sources"]:
+        license_name = source.get("license", "UNKNOWN")
+        reason = "NOT_CHINESE_REVIEWED_CORPUS"
+        status = "NEEDS_REVIEW"
+        if "NC" in license_name or "SA" in license_name:
+            status, reason = "BLOCKED", "RESTRICTED_LICENSE_NOT_FOR_PUBLIC_PRODUCTION"
+        decisions.append(
+            {
+                "source_id": source["source_id"],
+                "license": license_name,
+                "status": status,
+                "reason": reason,
+                "production_enabled": False,
+            }
+        )
+    wiki_root = root / "zh-corpus-20261103" / "raw" / "zhwiki"
+    for metadata in sorted(wiki_root.glob("*/metadata.json")):
+        data = json.loads(metadata.read_text(encoding="utf-8"))
+        decisions.append(
+            {
+                "source_id": str(data.get("page_id", metadata.parent.name)),
+                "license": "CC-BY-SA-4.0",
+                "status": "NEEDS_REVIEW",
+                "reason": "ZH_WIKI_RESEARCH_PARTITION_REQUIRES_ATTRIBUTION_AND_CONTENT_REVIEW",
+                "production_enabled": False,
+            }
+        )
+    bundle = {
+        "version": "zh-project-research-v1",
+        "mode": mode,
+        "chunks": rows,
+        "fingerprint": sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False)),
+        "production_enabled": False,
+    }
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
+    audit = {
+        "mode": mode,
+        "selected_chunks": len(rows),
+        "source_decisions": decisions,
+        "counts": dict(Counter(item["status"] for item in decisions)),
+        "expert_review_completed": False,
+        "policy_version": "license-gate-v1",
+    }
+    (destination.parent / "license-audit.json").write_text(
+        json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return audit
+
+
+def terms(text: str) -> set[str]:
+    words = set(re.findall(r"[a-zA-Z0-9]{2,}", text.lower()))
+    chinese = "".join(re.findall(r"[\u4e00-\u9fff]", text))
+    return words | {chinese[i : i + 2] for i in range(len(chinese) - 1)}

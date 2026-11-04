@@ -21,6 +21,7 @@ dependencies = [
   "soundfile>=0.12,<1",
   "neo4j>=5.25,<6",
   "pymilvus>=2.4.10,<2.5",
+  "setuptools>=70,<81",
 ]
 
 [project.optional-dependencies]

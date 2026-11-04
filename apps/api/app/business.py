@@ -2,7 +2,10 @@ from app.worker import PermanentJobError
 
 
 async def knowledge_tool(state: dict) -> dict:
-    return {"status": "disabled", "reason": "KNOWLEDGE_PIPELINE_NOT_READY"}
+    from app.config import get_settings
+    from app.knowledge.service import KnowledgeService
+
+    return await KnowledgeService(get_settings()).answer(state["text"])
 
 
 async def planning_tool(state: dict) -> dict:
