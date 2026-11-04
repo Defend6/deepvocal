@@ -7,7 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,17 @@ class JobCreate(BaseModel):
 
 
 async def enqueue(session: AsyncSession, owner: str, request: JobCreate) -> dict:
+    try:
+        if request.kind == "planning":
+            from app.planning import PlanningInput
+
+            PlanningInput.model_validate(request.input)
+        elif request.kind == "assessment":
+            from app.audio import AssessmentInput
+
+            AssessmentInput.model_validate(request.input)
+    except ValidationError as exc:
+        raise HTTPException(422, "invalid structured job input: " + str(exc)) from exc
     body = request.model_dump(mode="json", exclude={"idempotency_key"})
     if len(json.dumps(body, ensure_ascii=False).encode()) > 65536:
         raise HTTPException(413, "job input exceeds 64 KiB")

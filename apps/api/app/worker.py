@@ -152,6 +152,14 @@ async def finish(
         )
         if row and status == "FAILED":
             await dead_event(session, row)
+        if row and status == "SUCCEEDED" and result is not None:
+            from app.artifacts import materialize
+
+            result = await materialize(session, job, result)
+            await session.execute(
+                text("UPDATE jobs SET result=CAST(:result AS jsonb) WHERE id=:id"),
+                {"result": json.dumps(result, allow_nan=False), "id": str(job["id"])},
+            )
         await session.commit()
         return row is not None
 

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
 from app.agents.router import RuleRouter
+from app.artifacts import router as artifacts_router
 from app.assistant import router as assistant_router
 from app.config import get_settings
 from app.identity import Session, User
@@ -24,13 +25,12 @@ router = RuleRouter()
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.include_router(jobs_router)
 app.include_router(assistant_router)
+app.include_router(artifacts_router)
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(
-        status="ok", mode=settings.deepvocal_mode, singing_enabled=settings.singing_enabled
-    )
+    return HealthResponse(status="ok", mode=settings.deepvocal_mode, singing_enabled=False)
 
 
 @app.get("/v1/me", response_model=AuthUserResponse)
@@ -70,19 +70,36 @@ def decide_route(request: RouteRequest) -> RouteResponse:
 
 @app.get("/v1/agents/{agent}/capabilities", response_model=CapabilityResponse)
 def capabilities(agent: str) -> CapabilityResponse:
+    if agent not in {"knowledge", "assessment", "planning", "singing"}:
+        raise HTTPException(404, "unknown agent")
     if agent == "singing":
         return CapabilityResponse(
             agent=agent,
-            enabled=settings.singing_enabled,
-            status="disabled" if not settings.singing_enabled else "available",
-            reason="external singing service is not configured"
-            if not settings.singing_enabled
-            else None,
+            enabled=False,
+            status="disabled",
+            reason="external singing service protocol is not configured",
+        )
+    if agent == "knowledge":
+        return CapabilityResponse(
+            agent=agent,
+            enabled=bool(settings.model_api_key),
+            status="available" if settings.model_api_key else "disabled",
+            reason="research corpus and provider account must pass validation"
+            if settings.model_api_key
+            else "MODEL_API_KEY_REQUIRED",
+        )
+    if agent == "assessment":
+        return CapabilityResponse(
+            agent=agent,
+            enabled=False,
+            status="disabled",
+            reason="offline measurement available; presign-only uploads remain pending",
         )
     return CapabilityResponse(
         agent=agent,
         enabled=True,
-        status="mock" if settings.deepvocal_mode == "mock" else "available",
+        status="available",
+        reason="engineering practice templates; not expert-reviewed personalized teaching",
     )
 
 

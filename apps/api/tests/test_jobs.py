@@ -39,7 +39,14 @@ async def database_case():
         yield sessions, owner
     finally:
         async with sessions() as session:
-            for table in ("outbox_events", "jobs", "audio_assets"):
+            for table in (
+                "practice_records",
+                "practice_plans",
+                "assessment_reports",
+                "outbox_events",
+                "jobs",
+                "audio_assets",
+            ):
                 await session.execute(
                     text(f"DELETE FROM {table} WHERE owner_id=:owner"), {"owner": owner}
                 )
@@ -95,9 +102,7 @@ def test_duplicate_delivery_cancellation_and_fencing():
             job = await claim(sessions, created["id"])
             assert job and await claim(sessions, created["id"]) is None
             async with sessions() as session:
-                cancelled = await cancel_job(
-                    job["id"], {"id": owner}, session
-                )
+                cancelled = await cancel_job(job["id"], {"id": owner}, session)
                 assert cancelled["status"] == "CANCELLED"
             assert await finish(sessions, job, {"stale": True}, None) is False
             async with sessions() as session:

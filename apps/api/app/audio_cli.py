@@ -1,0 +1,28 @@
+"""Offline measurement without bypassing the server's pending-asset policy."""
+
+import argparse
+import json
+from pathlib import Path
+
+from app.audio import AssessmentInput, assess_bytes
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("audio", type=Path)
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    if args.audio.stat().st_size > 104857600:
+        parser.error("audio exceeds 100 MiB")
+    config = AssessmentInput.model_validate_json(args.config.read_text(encoding="utf-8"))
+    result = assess_bytes(args.audio.read_bytes(), config)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(result, ensure_ascii=False, allow_nan=False, indent=2), encoding="utf-8"
+    )
+    print(f"Saved {result['profile']} measurement ({result['quality']}) to {args.output}")
+
+
+if __name__ == "__main__":
+    main()

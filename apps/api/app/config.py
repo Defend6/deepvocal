@@ -29,8 +29,12 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     knowledge_mode: str = "research"
-    knowledge_bundle: str = str(Path(__file__).resolve().parents[3] / "datasets" / "working" / "knowledge.json")
-    knowledge_index_manifest: str = str(Path(__file__).resolve().parents[3] / "datasets" / "indexes" / "active.json")
+    knowledge_bundle: str = str(
+        Path(__file__).resolve().parents[3] / "datasets" / "working" / "knowledge.json"
+    )
+    knowledge_index_manifest: str = str(
+        Path(__file__).resolve().parents[3] / "datasets" / "indexes" / "active.json"
+    )
     neo4j_uri: str = "bolt://127.0.0.1:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: str = "change-me-local-only"
