@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from pathlib import Path
+from uuid import uuid4
 
 from app.knowledge.governance import load_bundle
 from app.knowledge.indexes import (
@@ -53,12 +54,17 @@ class KnowledgeService:
         }
         path = Path(self.settings.knowledge_index_manifest)
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-        temporary.replace(path)
+        temporary = path.with_suffix(f".{uuid4().hex}.tmp")
+        try:
+            temporary.write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
         return manifest
 
-    async def answer(self, question: str) -> dict:
+    async def answer(self, question: str, skill: dict | None = None) -> dict:
         if any(
             word in question
             for word in ("用药", "吃什么药", "诊断疾病", "声带结节", "嗓子疼", "喉咙痛")
@@ -79,7 +85,7 @@ class KnowledgeService:
             }
         by_id = {row["id"]: row for row in bundle["chunks"]}
         lexical = lexical_search(bundle, question)
-        if not lexical:
+        if not lexical and not self.settings.model_api_key:
             return {
                 "status": "refused",
                 "reason": "INSUFFICIENT_EVIDENCE",
@@ -109,11 +115,17 @@ class KnowledgeService:
                 for key in reciprocal_rank_fusion(lexical, vector_ids, graph_ids)
                 if key in by_id
             ][:12]
+            if not candidates:
+                return {"status": "refused", "reason": "INSUFFICIENT_EVIDENCE", "citations": []}
             ranking = await self.provider.rerank(question, [row["text"] for row in candidates])
             if ranking[0][1] < 0.35:
                 return {"status": "refused", "reason": "LOW_RELEVANCE", "citations": []}
             evidence = [candidates[index] for index, score in ranking if score >= 0.35][:5]
-            answer = await self.provider.answer(question, evidence)
+            answer = (
+                await self.provider.answer(question, evidence, skill)
+                if skill
+                else await self.provider.answer(question, evidence)
+            )
             references = [int(value) for value in re.findall(r"\[(\d+)\]", answer)]
             if not references or any(value < 1 or value > len(evidence) for value in references):
                 return {

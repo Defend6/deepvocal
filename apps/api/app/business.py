@@ -10,7 +10,7 @@ async def knowledge_tool(state: dict) -> dict:
     from app.config import get_settings
     from app.knowledge.service import KnowledgeService
 
-    return await KnowledgeService(get_settings()).answer(state["text"])
+    return await KnowledgeService(get_settings()).answer(state["text"], state.get("skill_context"))
 
 
 async def planning_tool(state: dict) -> dict:
@@ -18,6 +18,13 @@ async def planning_tool(state: dict) -> dict:
     from app.planning import PlanningInput, create_plan
 
     config = PlanningInput.model_validate(state["input"])
+    from app.memory import effective_preferences
+
+    async with _session_factory()() as session:
+        preferences = await effective_preferences(session, state["owner_id"])
+    for key in ("goal", "minutes"):
+        if key not in config.model_fields_set and key in preferences:
+            setattr(config, key, preferences[key])
     report = None
     if config.report_id:
         async with _session_factory()() as session:

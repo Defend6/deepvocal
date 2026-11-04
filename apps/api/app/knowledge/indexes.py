@@ -67,9 +67,18 @@ class KnowledgeIndexes:
                 return []
             records, _, _ = driver.execute_query(
                 """
-                MATCH (c:DVChunk)-[:MENTIONS]->(e:DVEntity)
-                WHERE c.fingerprint=$fingerprint AND c.mode=$mode AND e.name IN $entities
-                RETURN c.chunk_id AS id,count(e) AS score ORDER BY score DESC,id LIMIT 12
+                CALL {
+                    MATCH (c:DVChunk)-[:MENTIONS]->(e:DVEntity)
+                    WHERE c.fingerprint=$fingerprint AND c.mode=$mode AND e.name IN $entities
+                    RETURN c.chunk_id AS id,3.0 AS score
+                    UNION ALL
+                    MATCH (seed:DVEntity)<-[:MENTIONS]-(bridge:DVChunk)-[:MENTIONS]->(related:DVEntity)<-[:MENTIONS]-(c:DVChunk)
+                    WHERE seed.name IN $entities AND seed<>related
+                        AND bridge.fingerprint=$fingerprint AND bridge.mode=$mode
+                        AND c.fingerprint=$fingerprint AND c.mode=$mode
+                    RETURN c.chunk_id AS id,1.0 AS score
+                }
+                RETURN id,sum(score) AS score ORDER BY score DESC,id LIMIT 12
             """,
                 fingerprint=bundle["fingerprint"],
                 mode=bundle["mode"],

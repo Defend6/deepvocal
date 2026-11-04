@@ -1,4 +1,10 @@
-from fastapi import FastAPI, HTTPException
+import asyncio
+import logging
+import time
+from uuid import uuid4
+
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy import text
 
 from app.agents.router import RuleRouter
 from app.artifacts import router as artifacts_router
@@ -6,7 +12,8 @@ from app.assistant import router as assistant_router
 from app.config import get_settings
 from app.identity import Session, User
 from app.jobs import router as jobs_router
-from app.knowledge.corpus import CorpusStatusService
+from app.knowledge.corpus import CorpusNotFoundError, CorpusStatusService
+from app.memory import router as memory_router
 from app.schemas import (
     AuthUserResponse,
     CapabilityResponse,
@@ -17,6 +24,7 @@ from app.schemas import (
     UploadCreateRequest,
     UploadCreateResponse,
 )
+from app.skills import router as skills_router
 from app.storage.s3 import S3Storage
 from app.uploads import UploadError, UploadService
 
@@ -26,6 +34,55 @@ app = FastAPI(title=settings.app_name, version="0.1.0")
 app.include_router(jobs_router)
 app.include_router(assistant_router)
 app.include_router(artifacts_router)
+app.include_router(memory_router)
+app.include_router(skills_router)
+logger = logging.getLogger("deepvocal.requests")
+
+
+@app.middleware("http")
+async def trace_request(request: Request, call_next):
+    # Generate locally, never log queries, request bodies, identity headers or presigned URLs.
+    request_id = str(uuid4())
+    started = time.monotonic()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request id=%s method=%s status=%s duration_ms=%d",
+        request_id,
+        request.method,
+        response.status_code,
+        round((time.monotonic() - started) * 1000),
+    )
+    return response
+
+
+@app.get("/ready")
+async def ready():
+    from redis.asyncio import Redis
+
+    from app.database import _session_factory
+
+    async def check():
+        async with _session_factory()() as session:
+            version = await session.scalar(
+                text("SELECT 1 FROM alembic_version WHERE version_num='0005_memory_skills'")
+            )
+            if version != 1:
+                raise RuntimeError("migration required")
+        client = Redis.from_url(settings.redis_url, socket_connect_timeout=2, socket_timeout=2)
+        try:
+            await client.ping()
+        finally:
+            await client.aclose()
+
+    try:
+        await asyncio.wait_for(check(), 5)
+    except Exception as exc:
+        raise HTTPException(503, "database or queue not ready") from exc
+    return {
+        "status": "ready",
+        "scope": "database and Redis; model and audio-upload verification separate",
+    }
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -105,4 +162,7 @@ def capabilities(agent: str) -> CapabilityResponse:
 
 @app.get("/v1/knowledge/corpus/status", response_model=CorpusStatusResponse)
 def corpus_status() -> CorpusStatusResponse:
-    return CorpusStatusResponse(**CorpusStatusService(settings.corpus_root).status())
+    try:
+        return CorpusStatusResponse(**CorpusStatusService(settings.corpus_root).status())
+    except CorpusNotFoundError as exc:
+        raise HTTPException(503, "corpus metadata unavailable") from exc

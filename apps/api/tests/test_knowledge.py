@@ -119,12 +119,15 @@ def test_real_neo4j_milvus_index_round_trip_with_synthetic_test_vectors(tmp_path
     settings, bundle = prepared(tmp_path)
     bundle["fingerprint"] = sha256(str(uuid4()))
     bundle["chunks"] = bundle["chunks"][:2]
+    bundle["chunks"][0]["entities"] = ["音准", "test-shared-entity"]
+    bundle["chunks"][1]["entities"] = ["test-shared-entity"]
     indexes = KnowledgeIndexes(settings)
     manifest = None
     try:
         indexes.graph_load(bundle)
         indexes.graph_load(bundle)
         assert "pitch" in indexes.graph_search(bundle, "音准")
+        assert bundle["chunks"][1]["id"] in indexes.graph_search(bundle, "音准")
         manifest = indexes.vector_load(bundle, [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
         Path(settings.knowledge_index_manifest).write_text(
             json.dumps({**manifest, "index_identity": index_identity(bundle, settings)})

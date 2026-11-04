@@ -8,6 +8,7 @@ from app.config import get_settings
 
 async def execute_job(job: dict) -> dict:
     from app.business import assessment_tool, knowledge_tool, planning_tool, singing_tool
+    from app.skills import selected_skill
 
     handlers = {
         "knowledge.retrieve": knowledge_tool,
@@ -30,6 +31,7 @@ async def execute_job(job: dict) -> dict:
             **job["request"].get("input", {}),
             "input_asset_id": job["request"].get("input_asset_id"),
         },
+        "skill_context": await selected_skill(str(job["owner_id"]), job["kind"]),
     }
     dsn = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
     async with await AsyncConnection.connect(
@@ -49,5 +51,6 @@ async def execute_job(job: dict) -> dict:
             "agent": result["agent"],
             "route_reason": result["route_reason"],
             "tool_trace": result.get("tool_trace", []),
+            "skill": {key: value for key, value in state["skill_context"].items() if key != "body"},
             **result["output"],
         }

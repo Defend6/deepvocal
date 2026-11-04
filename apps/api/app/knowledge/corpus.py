@@ -37,18 +37,13 @@ class CorpusStatusService:
         return {
             "corpus_version": summary.get("version", "unknown"),
             "status": summary.get("status", "UNKNOWN"),
-            "document_count": summary.get(
-                "document_count", self._count_jsonl(normalized / "documents.jsonl")
+            "document_count": self._count(
+                summary, "document_count", normalized / "documents.jsonl"
             ),
-            "chunk_count": summary.get(
-                "chunk_count", self._count_jsonl(normalized / "chunks.jsonl")
-            ),
-            "entity_count": summary.get(
-                "entity_count", self._count_jsonl(normalized / "entities.jsonl")
-            ),
-            "relation_candidate_count": summary.get(
-                "candidate_relation_count",
-                self._count_jsonl(normalized / "relations_candidate.jsonl"),
+            "chunk_count": self._count(summary, "chunk_count", normalized / "chunks.jsonl"),
+            "entity_count": self._count(summary, "entity_count", normalized / "entities.jsonl"),
+            "relation_candidate_count": self._count(
+                summary, "candidate_relation_count", normalized / "relations_candidate.jsonl"
             ),
             "source_count": summary.get("source_count", len(sources)),
             "review_status": self._review_status(sources),
@@ -65,7 +60,21 @@ class CorpusStatusService:
         path = self.root / name
         if not path.is_file():
             raise CorpusNotFoundError(f"corpus metadata file is missing: {path}")
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise TypeError("expected metadata object")
+            return value
+        except (OSError, ValueError, TypeError) as exc:
+            raise CorpusNotFoundError("corpus metadata is invalid or unreadable") from exc
+
+    def _count(self, summary: dict, key: str, fallback: Path) -> int:
+        if key not in summary:
+            return self._count_jsonl(fallback)
+        value = summary[key]
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise CorpusNotFoundError("corpus count metadata is invalid")
+        return value
 
     @staticmethod
     def _count_jsonl(path: Path) -> int:

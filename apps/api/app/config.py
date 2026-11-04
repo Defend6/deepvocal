@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     milvus_uri: str = "http://127.0.0.1:19530"
     corpus_root: str = str(Path(__file__).resolve().parents[3] / "datasets")
     s3_endpoint: str = "http://127.0.0.1:9000"
+    s3_public_endpoint: str = ""
     s3_bucket: str = "deepvocal-private"
     s3_access_key: str = "deepvocal"
     s3_secret_key: str = "change-me-local-only"

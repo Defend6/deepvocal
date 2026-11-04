@@ -1,0 +1,62 @@
+services:
+  migrate:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: deepvocal-api:local
+    environment: &app_environment
+      DEEPVOCAL_MODE: development
+      AUTH_MODE: local
+      DATABASE_URL: postgresql+asyncpg://deepvocal:deepvocal@postgres:5432/deepvocal
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: http://object-store:9000
+      S3_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-deepvocal}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-change-me-local-only}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: change-me-local-only
+      MILVUS_URI: http://milvus:19530
+      MODEL_API_KEY: ${MODEL_API_KEY:-}
+      MODEL_API_BASE: ${MODEL_API_BASE:-https://api.siliconflow.cn/v1}
+      CHAT_MODEL: ${CHAT_MODEL:-Qwen/Qwen3-8B}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      RERANKER_MODEL: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      KNOWLEDGE_MODE: research
+      LANGCHAIN_TRACING_V2: "false"
+    volumes: &app_volumes
+      - knowledge_working:/app/datasets/working
+      - knowledge_indexes:/app/datasets/indexes
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      object-store: {condition: service_healthy}
+    command: ["sh", "-c", "python -m alembic -c apps/api/alembic.ini upgrade head && python -m app.knowledge.cli prepare && python scripts/configure_storage.py"]
+  api:
+    image: deepvocal-api:local
+    environment: *app_environment
+    volumes: *app_volumes
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready',timeout=6)"]
+      interval: 10s
+      timeout: 8s
+      retries: 10
+  worker:
+    image: deepvocal-api:local
+    environment: *app_environment
+    volumes: *app_volumes
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    command: ["python", "-m", "app.worker"]
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["127.0.0.1:8080:80"]
+volumes:
+  knowledge_working:
+  knowledge_indexes:

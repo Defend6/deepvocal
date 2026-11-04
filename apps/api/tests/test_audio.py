@@ -82,3 +82,10 @@ def test_reference_input_and_plan_constraints():
             goal="pitch",
             exercises=[{"title": "x", "seconds": 30, "instruction": "x"}],
         )
+
+
+@pytest.mark.parametrize("minutes", [5, 10, 30])
+def test_generated_plans_can_be_edited_without_schema_conflicts(minutes):
+    plan = create_plan(PlanningInput(minutes=minutes, goal="pitch"))["plan"]
+    edited = PlanEdit(version=1, goal=plan["goal"], days=plan["days"], exercises=plan["exercises"])
+    assert sum(item.seconds for item in edited.exercises) == minutes * 60

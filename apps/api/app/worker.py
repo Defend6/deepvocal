@@ -156,6 +156,11 @@ async def finish(
             from app.artifacts import materialize
 
             result = await materialize(session, job, result)
+            from app.memory import complete_compaction, record_completion
+
+            if job["kind"] == "memory":
+                result = await complete_compaction(session, job)
+            await record_completion(session, job, result)
             await session.execute(
                 text("UPDATE jobs SET result=CAST(:result AS jsonb) WHERE id=:id"),
                 {"result": json.dumps(result, allow_nan=False), "id": str(job["id"])},
@@ -165,6 +170,9 @@ async def finish(
 
 
 async def default_handler(job: dict) -> dict:
+    if job["kind"] == "memory":
+        # All mutations happen in fenced finish, in the same transaction as job success.
+        return {"status": "prepared"}
     if job["kind"] == "evaluation":
         if job["request"].get("input", {}) != {"check": "infrastructure"}:
             raise PermanentJobError("UNSUPPORTED_EVALUATION")
@@ -194,8 +202,8 @@ async def process_one(
         )
     except PermanentJobError as exc:
         await finish(sessions, job, None, str(exc)[:80])
-    except Exception:
-        logger.exception("Job handler failed", extra={"job_id": str(job["id"])})
+    except Exception:  # noqa: BLE001 -- worker boundary redacts private input and persists failure
+        logger.error("Job handler failed", extra={"job_id": str(job["id"])})
         await finish(sessions, job, None, "INTERNAL_ERROR")
     else:
         await finish(sessions, job, result, None)

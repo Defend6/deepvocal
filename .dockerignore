@@ -1,0 +1,15 @@
+**/.venv
+**/node_modules
+**/dist
+.git
+.env*
+datasets/**
+!datasets/project-original/
+!datasets/project-original/**
+!datasets/source-registry.json
+!datasets/SUMMARY.json
+_qa
+sources
+outputs
+logs
+backups

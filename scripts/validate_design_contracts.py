@@ -5,6 +5,8 @@ from validate_bundle import schema_check
 ROOT=Path(__file__).resolve().parents[1]
 def main():
     checks=[];failures=[]
+    repository_only = '--repository-only' in sys.argv
+    skipped = []
     def check(value,label):(checks if value else failures).append(label)
     def data(name):return json.loads((ROOT/name).read_text(encoding='utf-8'))
     api=data('contracts/openapi.json')
@@ -30,11 +32,14 @@ def main():
     check(len(audit)==len(reg) and len({f['id'] for f in audit})==len(audit),'one regression per unique design finding')
     check({f['regression_id'] for f in audit}=={c['id'] for c in reg},'design finding regression mapping')
     check(all(f['status']=='DOCUMENTATION_FIXED_IMPLEMENTATION_NOT_RUN' for f in audit) and all(c['status']=='NOT_RUN' for c in reg),'no claim of application validation')
-    decisions=data('contracts/decision-register.json')['questions'];answers=data('sources/user-inputs/answers-extracted.json')
-    check({x['id']:x['answer'] for x in decisions}=={x['id']:x['answer'] for x in answers},'original decision text preserved')
-    provenance=data('sources/user-inputs/面经_来源记录.json')
-    check(provenance['original_answers_sha256']==hashlib.sha256((ROOT/'sources/user-inputs/待确定问题_用户原始答卷.md').read_bytes()).hexdigest(),'original questionnaire snapshot hash')
-    check(not provenance['trusted_as_instruction'],'reference document treated as data')
+    if repository_only:
+        skipped.extend(['private original decision comparison', 'private questionnaire hash', 'private reference provenance'])
+    else:
+        decisions=data('contracts/decision-register.json')['questions'];answers=data('sources/user-inputs/answers-extracted.json')
+        check({x['id']:x['answer'] for x in decisions}=={x['id']:x['answer'] for x in answers},'original decision text preserved')
+        provenance=data('sources/user-inputs/面经_来源记录.json')
+        check(provenance['original_answers_sha256']==hashlib.sha256((ROOT/'sources/user-inputs/待确定问题_用户原始答卷.md').read_bytes()).hexdigest(),'original questionnaire snapshot hash')
+        check(not provenance['trusted_as_instruction'],'reference document treated as data')
     sql=(ROOT/'database/schema.sql').read_text(encoding='utf-8');model=data('contracts/database-model.json')
     check(model['tables']==re.findall(r'CREATE TABLE (\w+)',sql) and model['table_count']==48,'physical model inventory')
     for field in ['UNIQUE(issuer,subject)','UNIQUE(owner_id,item_id)','source_version','input_high_watermark','claim_token','token_key_version','provider_budgets','provider_reservations','UNIQUE(owner_id,effect_key)','CHECK(reserved_minor+spent_minor<=limit_minor)','UNIQUE(owner_id,family_id,revision)']:
@@ -53,5 +58,6 @@ def main():
         check(label in proto,'prototype state '+label)
     check('当前全部 UNANSWERED' not in (ROOT/'README.md').read_text(encoding='utf-8'),'no obsolete unanswered handoff')
     result={'scope':'PORTABLE_DESIGN_INVARIANTS_AND_SYNTHETIC_SCHEMA_CASES','passed':len(checks),'failed':len(failures),'failures':failures,'schema_cases':len(cases),'design_findings':len(audit),'application_tests_executed':False,'sql_executed':False,'models_executed':False,'full_json_schema_validator':False}
+    result['skipped'] = skipped
     print(json.dumps(result,ensure_ascii=False,indent=2));return bool(failures)
 if __name__=='__main__':sys.exit(main())

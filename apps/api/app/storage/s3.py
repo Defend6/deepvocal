@@ -62,7 +62,20 @@ class S3Storage:
             aws_secret_access_key=config.secret_key,
             region_name=config.region,
         )
-        return cls(config, client)
+        storage = cls(config, client)
+        public_endpoint = getattr(settings, "s3_public_endpoint", "")
+        storage.signing_client = (
+            boto3.client(
+                "s3",
+                endpoint_url=public_endpoint,
+                aws_access_key_id=config.access_key,
+                aws_secret_access_key=config.secret_key,
+                region_name=config.region,
+            )
+            if public_endpoint
+            else client
+        )
+        return storage
 
     def ensure_bucket(self) -> None:
         try:
@@ -83,7 +96,7 @@ class S3Storage:
             "ContentType": content_type,
             "ServerSideEncryption": "AES256",
         }
-        return self.client.generate_presigned_url(
+        return getattr(self, "signing_client", self.client).generate_presigned_url(
             "put_object",
             Params=params,
             ExpiresIn=self.config.presign_ttl_seconds,

@@ -1,36 +1,54 @@
 # DeepVocal
 
-DeepVocal 是基于 LangGraph 的多 Agent 声乐辅助系统。当前仓库从项目书和数据准备库开始，先实现可替换的工程骨架，再逐步接入真实模型、GraphRAG 和音频算法。
+基于 LangGraph 的多 Agent 声乐研究工作台。四类 Agent 分别承担知识问答、录音/全曲测评、练习规划与歌声生成能力查询。确定性路由、工具白名单和持久化检查点控制执行边界。
 
-## 当前状态
+## 当前可用范围（2026-11-04）
 
-- 文档基线：`docs/`
-- 数据准备库：`datasets/`
-- 后端骨架：`apps/api/`
-- 前端骨架：`apps/web/`
-- Docker 基础设施：PostgreSQL、Redis、RustFS（S3 兼容）、Neo4j、Milvus 与 etcd，定义在 `infra/docker-compose.yml`
-- 模型和歌声生成：当前为 Mock/disabled，不代表已接入
+- PostgreSQL 作业与 outbox、Redis Streams、重试/超时/取消/租约恢复，以及业务产物原子落库。
+- 真正的 LangGraph Supervisor + 四子图，PostgreSQL checkpoint；每个 Agent 仅可调用自身工具。
+- 中文研究资料门控、Milvus 向量检索、Neo4j 实体共现扩展、融合/重排/引用校验与模型 HTTP 适配器。无 Key 时仅展示资料预览。
+- 单声清唱工程测量、长音与显式参考音符评分、分段报告；5～30 分钟约束计划、版本编辑和练习反馈。
+- 声明式 Skill 发现/按需加载/审核发布退役；默认关闭的用户确认偏好记忆、来源与异步压缩。
+- React + TypeScript 前端，风格参考 Look Alive；桌面和手机流程包含真实预签名 PUT 上传。
 
-## 本地启动顺序
+**本机研究版本，不是生产系统。** 按已确认范围，仅本地测试身份；上传资产始终 pending，浏览器不能提交测评。离线声学测试和预置已验证资产的集成测试可运行。真实模型需 Key 和账户可用性联调；歌声生成保持禁用。中文草稿尚未经专家审核，没有虚构问答命中率、教学效果或 Token 节省指标。
 
-1. 复制 `.env.example` 为 `.env`，只填写本地服务配置。
-2. 启动基础设施：`docker compose -f infra/docker-compose.yml up -d`
-3. 建立并安装 API 环境：`python -m venv .venv`，Windows 下执行 `.venv\\Scripts\\python -m pip install -e "apps/api[dev]"`。
-4. 执行数据库迁移：`.venv\\Scripts\\python -m alembic -c apps/api/alembic.ini upgrade head`。
-5. 在项目根目录运行 API：`.venv\\Scripts\\python -m uvicorn app.main:app --reload --app-dir apps/api`。
-6. 安装并运行前端：`npm --prefix apps/web install && npm --prefix apps/web run dev`。
-7. 后端测试：`Set-Location apps/api; ..\\..\\.venv\\Scripts\\python -m pytest`。
+## 推荐：本地编辑，Docker 运行
 
-当前实现节点已完成：React 前端可访问 FastAPI 健康检查和结构化路由接口；API 提供只读 GraphRAG 语料状态端点，并明确返回审核/生产启用阻断原因；后端仅支持本地显式测试身份、按身份映射的 owner 和音频预签名上传申请。OIDC 参数仅保留配置位；实际 Bearer 校验、上传完成回调、对象校验、真实模型、知识检索、音频分析、上传前端工作流、任务 API 和后台 worker 尚未实现。申请的资产保持 pending，不能用于测评。页面中的音频上传按钮目前仅是入口占位。各阶段待开发项见 `docs/31_后续开发路线与未完成项.md`，本地身份和上传使用边界见 `docs/33_身份认证与音频上传实现记录.md`。
+在项目根目录，复制 `.env.example` 为 `.env`，保留本地示例配置。已有 `.env` 请勿覆盖。
 
-## 分支约定
+```powershell
+docker compose -f infra/docker-compose.yml -f infra/compose.app.yml up -d --build --wait
+```
 
-- `main`：可复现基线
-- `feature/platform-skeleton`：本轮整体框架
-- `feature/data/*`：数据集整理和审核
-- `feature/knowledge/*`：GraphRAG 与知识问答
-- `feature/assessment/*`：声学测评
-- `feature/planning/*`：练习规划
-- `feature/singing/*`：未来歌声生成接口
+浏览器打开 `http://127.0.0.1:8080`，API 文档为 `http://127.0.0.1:8000/docs`。启动会迁移数据库、准备原创中文研究资料并配置对象存储 CORS。所有公开端口仅绑定回环地址。密钥通过本地环境传入，不提交 Git。
 
-GitHub CLI 使用 `gh auth login` 登录后创建私有远端；不要将 `.env`、用户录音或未经审核的数据集推送到仓库。
+## 本地调试
+
+需 Python 3.12、Node.js 24、Docker Desktop（Linux 容器）。项目及缓存、浏览器测试产物均放在 `D:\deepvocal`。
+
+```powershell
+.\scripts\dev.ps1 setup
+```
+
+分别在三个终端运行 `scripts/dev.ps1 api`、`scripts/dev.ps1 worker`、`scripts/dev.ps1 web`，打开 `http://127.0.0.1:5173`。若已启动整套 Compose，先停止其中 api/worker/web，防止 8000 端口冲突及混用代码版本；保留数据库服务与卷。
+
+```powershell
+docker compose -f infra/docker-compose.yml -f infra/compose.app.yml stop api worker web
+.\scripts\dev.ps1 test
+.\scripts\dev.ps1 e2e
+```
+
+E2E 需要 API、worker、前端及 RustFS 已启动。测试 Redis 使用 DB15；不要把它改成真实业务队列。完整复现、备份恢复及验证说明见 [运行与验收记录](docs/39_运行复现与验收边界.md)。
+
+## 文档和代码的对应关系
+
+[阅读导航](docs/00_阅读导航与交付边界.md) / [真实进度与未完成项](docs/31_后续开发路线与未完成项.md) / [Skill 与 Memory](docs/38_Skill与Memory实现记录.md)。
+
+`contracts/openapi.json`、`database/schema.sql` 是完整目标设计；实际服务器契约为 `contracts/runtime-openapi.json` 和 `apps/api/migrations/`。两者尚未完全一致，不能用设计 DDL 覆盖运行数据库。评分仍遵循 `contracts/scoring-rules.json`。`prototype/` 为历史原型，实际前端在 `apps/web/`。
+
+## 数据与发布
+
+只将明确授权的研究资料纳入对应分区；准备库、限制性来源和原创工程草稿均不等于生产知识库。用户音频、备份、Key、生成索引与运行状态不得提交。已有语料的许可状态见 [GraphRAG 实现记录](docs/36_GraphRAG研究链路与许可处理.md)。
+
+当前 GitHub 仓库为私有，迭代推送 `feature/platform-skeleton`；默认分支当前也是该分支。后续经独立验收再决定合并/公开，不自动更改仓库可见性。

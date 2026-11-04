@@ -32,7 +32,7 @@ def authenticate(
     }:
         raise _unauthorized("only local test identity is implemented")
     identity = request.headers.get("X-Debug-Identity")
-    if not identity:
+    if not identity or len(identity) > 512:
         raise _unauthorized("X-Debug-Identity required in local test mode")
     try:
         issuer, subject = identity.split("|", 1)

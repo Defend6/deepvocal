@@ -86,6 +86,16 @@ def create_plan(config: PlanningInput, report: dict | None = None) -> dict:
             "instruction": "记录实际练习时长、主观难度和不适；无需完成额定时长。",
         },
     ]
+    core = exercises.pop(1)
+    remaining = core["seconds"]
+    group = 1
+    while remaining > 0:
+        seconds = min(600, remaining)
+        exercises.insert(
+            group, {**core, "seconds": seconds, "title": f"{core['title']} · 第{group}组"}
+        )
+        group += 1
+        remaining -= seconds
     observations = []
     if report:
         observations = [f"报告任务：{report.get('profile')}；质量：{report.get('quality')}。"]

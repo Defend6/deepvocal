@@ -22,6 +22,7 @@ class AgentState(TypedDict, total=False):
     text: str
     explicit_action: str
     input: dict
+    skill_context: dict
     agent: str
     route_reason: str
     tool_trace: list[str]
