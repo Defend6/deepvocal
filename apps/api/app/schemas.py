@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -66,15 +65,6 @@ class UploadCreateResponse(BaseModel):
     upload_url: str
     required_headers: dict[str, str]
     expires_in: int
-
-
-class UploadCompleteResponse(BaseModel):
-    asset_id: str
-    status: Literal["ready"]
-    content_type: str
-    size_bytes: int
-    sha256: str
-    completed_at: datetime
 
 
 class AuthUserResponse(BaseModel):

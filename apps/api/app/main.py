@@ -16,7 +16,6 @@ from app.schemas import (
     HealthResponse,
     RouteRequest,
     RouteResponse,
-    UploadCompleteResponse,
     UploadCreateRequest,
     UploadCreateResponse,
 )
@@ -53,7 +52,7 @@ async def current_user(
         await session.rollback()
         raise HTTPException(status_code=403, detail="user account is not active")
     await session.commit()
-    return {"id": user["id"], "issuer": user["issuer"], "subject": user["subject"]}
+    return {"id": str(user["id"]), "issuer": user["issuer"], "subject": user["subject"]}
 
 
 @app.get("/v1/me", response_model=AuthUserResponse)
@@ -77,21 +76,6 @@ async def create_upload(
         await session.rollback()
         raise HTTPException(status_code=503, detail="upload storage is unavailable") from exc
     return UploadCreateResponse(**payload)
-
-
-@app.post("/v1/uploads/{asset_id}/complete", response_model=UploadCompleteResponse)
-async def complete_upload(
-    asset_id: str,
-    user: Annotated[dict[str, str], Depends(current_user)],
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> UploadCompleteResponse:
-    try:
-        payload = await UploadService(
-            session, S3Storage.from_settings(settings), settings
-        ).complete(user["id"], asset_id)
-    except UploadError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-    return UploadCompleteResponse(**payload)
 
 
 @app.post("/v1/router/decide", response_model=RouteResponse)

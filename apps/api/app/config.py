@@ -19,8 +19,6 @@ class Settings(BaseSettings):
     oidc_audience: str = ""
     oidc_jwks_url: str = ""
     auth_clock_skew_seconds: int = 30
-    local_test_issuer: str = "https://local.deepvocal.test"
-    local_test_subject: str = "local-dev-user"
     max_audio_size_bytes: int = 104857600
     upload_expiry_seconds: int = 3600
     database_url: str = "postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:15432/deepvocal"
@@ -34,14 +32,9 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth_configuration(self) -> "Settings":
-        if self.auth_mode not in {"local", "oidc"}:
-            raise ValueError("AUTH_MODE must be local or oidc")
-        if self.deepvocal_mode.lower() == "production":
-            if self.auth_mode != "oidc":
-                raise ValueError("production requires AUTH_MODE=oidc")
-            if not self.oidc_issuer or not self.oidc_audience or not self.oidc_jwks_url:
-                raise ValueError("production OIDC requires issuer, audience, and JWKS URL")
-        if self.auth_mode == "local" and self.deepvocal_mode.lower() not in {
+        if self.auth_mode != "local":
+            raise ValueError("only local test identity is implemented")
+        if self.deepvocal_mode.lower() not in {
             "mock",
             "development",
             "test",

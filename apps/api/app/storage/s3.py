@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -74,9 +73,7 @@ class S3Storage:
                 raise
             self.client.create_bucket(Bucket=self.config.bucket)
 
-    def create_upload_url(
-        self, object_key: str, content_type: str, sha256: str | None = None
-    ) -> str:
+    def create_upload_url(self, object_key: str, content_type: str) -> str:
         self._validate_key(object_key)
         if not content_type.startswith("audio/"):
             raise ValueError("only audio content types can be uploaded")
@@ -86,20 +83,11 @@ class S3Storage:
             "ContentType": content_type,
             "ServerSideEncryption": "AES256",
         }
-        if sha256 is not None:
-            if len(sha256) != 64 or any(ch not in "0123456789abcdef" for ch in sha256):
-                raise ValueError("sha256 must be a lowercase hexadecimal digest")
-            params["ChecksumSHA256"] = base64.b64encode(bytes.fromhex(sha256)).decode("ascii")
-            params["Metadata"] = {"sha256": sha256}
         return self.client.generate_presigned_url(
             "put_object",
             Params=params,
             ExpiresIn=self.config.presign_ttl_seconds,
         )
-
-    @staticmethod
-    def expected_checksum_b64(sha256: str) -> str:
-        return base64.b64encode(bytes.fromhex(sha256)).decode("ascii")
 
     def inspect_object(self, object_key: str) -> dict[str, Any]:
         self._validate_key(object_key)
