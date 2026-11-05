@@ -25,9 +25,46 @@ class JobCreate(BaseModel):
 
 
 async def enqueue(
-    session: AsyncSession, owner: str, request: JobCreate, *, automatic: bool = False
+    session: AsyncSession,
+    owner: str,
+    request: JobCreate,
+    *,
+    automatic: bool = False,
+    commit: bool = True,
+    workflow: dict | None = None,
 ) -> dict:
+    if request.kind == "assessment" and request.input.get("song_id"):
+        try:
+            song_identifier = str(uuid.UUID(str(request.input["song_id"])))
+        except ValueError as exc:
+            raise HTTPException(422, "invalid reference melody identifier") from exc
+        song = (
+            await session.execute(
+                text("SELECT payload FROM song_references WHERE id=:id AND owner_id=:owner"),
+                {"id": song_identifier, "owner": owner},
+            )
+        ).scalar_one_or_none()
+        if song is None:
+            raise HTTPException(404, "reference melody not found")
+        request = request.model_copy(
+            update={
+                "input": {
+                    **request.input,
+                    "reference_notes": song["notes"],
+                    "profile": "reference_song",
+                }
+            }
+        )
     try:
+        if request.kind == "singing":
+            from app.config import get_settings
+            from app.singing import GenerationInput, available, validate_consent
+
+            if available(get_settings()):
+                config = GenerationInput.model_validate(request.input)
+                if not request.input_asset_id:
+                    raise HTTPException(422, "voice sample required")
+                await validate_consent(session, owner, config, request.input_asset_id)
         if request.kind == "knowledge":
             from app.knowledge.policy import KnowledgeInput
 
@@ -46,9 +83,33 @@ async def enqueue(
     # Server-only provenance, outside client-controlled input. Included in idempotency hash.
     if automatic:
         body["routing"] = {"mode": "automatic", "version": "rules-v2"}
+    if workflow:
+        body["workflow"] = workflow
     if len(json.dumps(body, ensure_ascii=False).encode()) > 65536:
         raise HTTPException(413, "job input exceeds 64 KiB")
     digest = hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
+    status = await session.scalar(
+        text("SELECT status FROM users WHERE id=:owner FOR UPDATE"), {"owner": owner}
+    )
+    if status != "active":
+        raise HTTPException(403, "user account is not active")
+    existing = (
+        (
+            await session.execute(
+                text("SELECT * FROM jobs WHERE owner_id=:owner AND idempotency_key=:key"),
+                {"owner": owner, "key": request.idempotency_key},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if existing is not None:
+        if existing["request_hash"] != digest:
+            raise HTTPException(409, "idempotency key reused with different input")
+        return public_job(existing)
+    from app.security import job_quota
+
+    await job_quota(session, owner)
     # The unique constraint is the concurrency barrier, not an application-only precheck.
     if request.kind == "assessment" and request.input_asset_id is None:
         raise HTTPException(422, "assessment requires a verified ready audio asset")
@@ -67,7 +128,7 @@ async def enqueue(
             raise HTTPException(404, "audio asset not found")
         if asset["status"] != "ready":
             raise HTTPException(
-                409, "audio asset is pending or unverified; presign-only uploads cannot be assessed"
+                409, "audio asset is pending or unverified; wait for upload verification"
             )
     job_id = str(uuid.uuid4())
     row = (
@@ -107,6 +168,9 @@ async def enqueue(
         if row["request_hash"] != digest:
             raise HTTPException(409, "idempotency key reused with different input")
     else:
+        from app.security import audit
+
+        await audit(session, owner, "job.created", job_id, {"kind": request.kind})
         await session.execute(
             text("""
             INSERT INTO outbox_events(id,owner_id,event_type,aggregate_id,payload)
@@ -119,7 +183,16 @@ async def enqueue(
                 "payload": json.dumps({"job_id": job_id, "kind": request.kind}),
             },
         )
-    await session.commit()
+    if request.kind == "singing":
+        await session.execute(
+            text("UPDATE jobs SET timeout_seconds=1800 WHERE id=:id"), {"id": str(row["id"])}
+        )
+    if request.kind == "assessment" and request.input.get("separate_vocals"):
+        await session.execute(
+            text("UPDATE jobs SET timeout_seconds=600 WHERE id=:id"), {"id": str(row["id"])}
+        )
+    if commit:
+        await session.commit()
     return public_job(row)
 
 

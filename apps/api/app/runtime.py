@@ -7,17 +7,25 @@ from app.config import get_settings
 
 
 async def execute_job(job: dict) -> dict:
-    from app.business import assessment_tool, knowledge_tool, planning_tool, singing_tool
+    from app.business import assessment_tool, knowledge_tool, planning_tool
     from app.skills import selected_skill
 
     async def knowledge_for_current_claim(state):
         return await knowledge_tool(state, claim_context=job)
 
+    async def singing_for_current_claim(state):
+        from app.singing import generate
+
+        return await generate(state, job)
+
+    async def assessment_for_current_claim(state):
+        return await assessment_tool(state, claim_context=job)
+
     handlers = {
         "knowledge.retrieve": knowledge_for_current_claim,
-        "assessment.submit": assessment_tool,
+        "assessment.submit": assessment_for_current_claim,
         "plans.create": planning_tool,
-        "singing.capabilities": singing_tool,
+        "singing.capabilities": singing_for_current_claim,
     }
     actions = {
         "knowledge": "knowledge.ask",
@@ -40,6 +48,7 @@ async def execute_job(job: dict) -> dict:
             "input_asset_id": job["request"].get("input_asset_id"),
         },
         "skill_context": await selected_skill(str(job["owner_id"]), job["kind"]),
+        "followup_plan": job["request"].get("workflow", {}).get("followup_plan"),
     }
     dsn = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
     async with await AsyncConnection.connect(

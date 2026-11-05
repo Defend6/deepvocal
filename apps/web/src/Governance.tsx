@@ -49,6 +49,7 @@ export function Governance({
   const [minutes, setMinutes] = useState(10);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [erasureText, setErasureText] = useState("");
   async function reload() {
     const [m, s, u] = await Promise.all([
       request<Memory>(identity, "/v1/memory"),
@@ -84,12 +85,12 @@ export function Governance({
       });
     return () => controller.abort();
   }, [identity, completedJobs.length]);
-  async function act(action: () => Promise<unknown>) {
+  async function act(action: () => Promise<unknown>, refresh = true) {
     setBusy(true);
     setError("");
     try {
       await action();
-      await reload();
+      if (refresh) await reload();
     } catch (error) {
       setError((error as Error).message);
     } finally {
@@ -116,11 +117,10 @@ export function Governance({
         )}
         <details>
           <summary>
-            模型用量与费用 ·{" "}
-            {usage?.configured ? "已配置本地预算" : "付费调用未启用"}
+            账户用量 ·{" "}
+            {usage?.configured ? "查看用量" : "暂无用量"}
           </summary>
-          <p className="muted">{usage?.notice}</p>
-          {usage?.periods.length === 0 && <p>本身份尚无模型调用费用记录。</p>}
+          {usage?.periods.length === 0 && <p>暂无使用记录。</p>}
           {usage?.periods.map((period) => (
             <p key={period.period}>
               {period.period} · {period.calls} 次调用 · 保守记账 ¥
@@ -346,6 +346,17 @@ export function Governance({
               </div>
             </div>
           ))}
+        </details>
+        <details className="privacy-settings"><summary>数据与隐私</summary>
+          <p>删除申请将停止正在进行的任务，清理录音、生成音频、对话、报告、计划、记忆及任务模板。
+            备份中的历史副本按备份保留周期处理。申请期间账户暂时不可用。</p>
+          <label>输入“删除我的全部项目数据”确认<input value={erasureText}
+            onChange={event => setErasureText(event.target.value)} /></label>
+          <button className="secondary" disabled={busy || erasureText !== "删除我的全部项目数据"}
+            onClick={() => void act(async () => {
+              await request(identity, "/v1/privacy/erase", {method: "POST", body: JSON.stringify({confirmation: erasureText})});
+              setErasureText(""); setError("已申请删除，清理完成前账户暂停使用。请稍后重新登录。");
+            }, false)}>申请删除全部项目数据</button>
         </details>
       </div>
     </section>

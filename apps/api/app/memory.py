@@ -160,6 +160,28 @@ async def compact(session, owner, revision):
         "confidence_class": "user_confirmed",
         "version": "memory-v1",
     }
+    events = (
+        (
+            await session.execute(
+                text("""SELECT payload FROM memory_events
+      WHERE owner_id=:owner AND event_kind='task.completed'
+      ORDER BY created_at DESC,id DESC LIMIT 50"""),
+                {"owner": owner},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    from collections import Counter
+
+    profile["task_summary"] = {
+        "recent_count": len(events),
+        "by_kind": dict(Counter(row["payload"].get("kind", "unknown") for row in events)),
+        "recent_artifact_ids": [
+            row["payload"]["artifact_id"] for row in events[:5] if row["payload"].get("artifact_id")
+        ],
+        "summary_method": "structured-events-v1",
+    }
     await session.execute(
         text(
             "UPDATE memory_settings SET profile=CAST(:profile AS jsonb),revision=:revision,updated_at=now() WHERE owner_id=:owner"
@@ -221,7 +243,7 @@ async def effective_preferences(session, owner):
 
 
 async def record_completion(session, job, result):
-    if job["kind"] == "memory":
+    if job["kind"] in {"memory", "upload_verify", "deletion"}:
         return
     row = await settings_row(session, str(job["owner_id"]), True)
     if not row["enabled"]:

@@ -50,6 +50,13 @@ class RuleRouter:
         theory = any(k in normalized for k in ("什么是", "为什么", "原理", "区别", "含义"))
         if theory and not any(k in normalized for k in ("帮我", "请分析", "请制定", "并", "然后")):
             return RouteDecision("knowledge", "vocal theory question", 0.9, ("knowledge.retrieve",))
+        if assessment and planning and not singing:
+            return RouteDecision(
+                "assessment",
+                "assessment followed by planning",
+                0.9,
+                ("audio.inspect", "assessment.submit"),
+            )
         if sum((singing, planning, assessment)) > 1:
             return RouteDecision("clarify", "multiple actionable intents", 0.4, ())
         if singing:

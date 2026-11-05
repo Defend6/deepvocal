@@ -1148,3 +1148,16 @@ footer {
     overflow: hidden;
   }
 }
+.developer-settings { margin: 12px auto; max-width: 1220px; padding: 0 20px; color: #59616d; font-size: 13px; }
+.developer-settings summary { cursor: pointer; width: fit-content; }
+.developer-settings .identity-bar { margin: 12px 0; }
+.conversation-panel { grid-column: 1 / -1; padding: 20px; border: 1px solid #e3e5ea; border-radius: 20px; margin-bottom: 18px; background: white; }
+.conversation-turn { padding: 10px 14px; margin-top: 12px; background: #f7f6fc; border-radius: 14px; overflow-wrap: anywhere; }
+.studio { text-align: left; width: 100%; }
+.studio > label { display: block; margin: 14px 0; }
+.studio details { margin: 18px 0; }
+.studio audio, .result-view audio { display: block; width: 100%; margin: 18px 0; }
+.pitch-chart { margin: 20px 0; padding: 12px; border: 1px solid #e9e9ef; border-radius: 14px; }
+.pitch-chart svg { width: 100%; height: auto; }
+.pitch-chart text { font-size: 13px; fill: #687183; }
+.account-actions { display: flex; justify-content: flex-end; gap: 10px; margin: 14px 6%; }

@@ -27,10 +27,21 @@ async def planning_tool(state: dict) -> dict:
 
     async with _session_factory()() as session:
         preferences = await effective_preferences(session, state["owner_id"])
+        history = (
+            (
+                await session.execute(
+                    text("""SELECT payload FROM practice_records
+          WHERE owner_id=:owner ORDER BY created_at DESC,id DESC LIMIT 3"""),
+                    {"owner": state["owner_id"]},
+                )
+            )
+            .mappings()
+            .all()
+        )
     for key in ("goal", "minutes"):
         if key not in config.model_fields_set and key in preferences:
             setattr(config, key, preferences[key])
-    report = None
+    report = state.get("measurement_report")
     if config.report_id:
         async with _session_factory()() as session:
             report = await session.scalar(
@@ -39,10 +50,10 @@ async def planning_tool(state: dict) -> dict:
             )
         if report is None:
             raise PermanentJobError("REPORT_NOT_FOUND")
-    return create_plan(config, report)
+    return create_plan(config, report, [dict(item) for item in history])
 
 
-async def assessment_tool(state: dict) -> dict:
+async def assessment_tool(state: dict, claim_context=None) -> dict:
     from app.audio import AssessmentInput
     from app.audio_process import assess_isolated
     from app.config import get_settings
@@ -67,7 +78,9 @@ async def assessment_tool(state: dict) -> dict:
     storage = S3Storage.from_settings(get_settings())
 
     def load():
-        response = storage.client.get_object(Bucket=storage.config.bucket, Key=asset["object_key"])
+        response = storage.client.get_object(
+            Bucket=storage.config.bucket, Key=asset["verified_key"] or asset["object_key"]
+        )
         body = response["Body"]
         try:
             data = body.read(get_settings().max_audio_size_bytes + 1)
@@ -78,10 +91,13 @@ async def assessment_tool(state: dict) -> dict:
         return data
 
     data = await asyncio.to_thread(load)
+    config = AssessmentInput.model_validate(state["input"])
+    if config.separate_vocals:
+        from app.separation import separate
+
+        data = await separate(data, claim_context or {"worker_token": state["job_id"]})
     try:
-        return await assess_isolated(
-            data, AssessmentInput.model_validate(state["input"]), get_settings()
-        )
+        return await assess_isolated(data, config, get_settings())
     except ValueError as exc:
         raise PermanentJobError(str(exc)[:80]) from exc
 

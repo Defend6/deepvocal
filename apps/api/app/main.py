@@ -10,11 +10,13 @@ from app.agents.router import RuleRouter
 from app.artifacts import router as artifacts_router
 from app.assistant import router as assistant_router
 from app.config import get_settings
+from app.conversations import router as conversations_router
 from app.identity import Session, User
 from app.jobs import router as jobs_router
 from app.knowledge.corpus import CorpusNotFoundError, CorpusStatusService
 from app.memory import router as memory_router
 from app.operations.diagnostics import router as operations_router
+from app.privacy import router as privacy_router
 from app.schemas import (
     AuthUserResponse,
     CapabilityResponse,
@@ -25,8 +27,14 @@ from app.schemas import (
     UploadCreateRequest,
     UploadCreateResponse,
 )
+from app.security import metrics
+from app.security import router as security_router
+from app.singing import router as singing_router
+from app.singing import service_ready as singing_ready
 from app.skills import router as skills_router
+from app.songs import router as songs_router
 from app.storage.s3 import S3Storage
+from app.upload_workflows import router as upload_router
 from app.uploads import UploadError, UploadService
 
 settings = get_settings()
@@ -38,6 +46,12 @@ app.include_router(artifacts_router)
 app.include_router(memory_router)
 app.include_router(skills_router)
 app.include_router(operations_router)
+app.include_router(upload_router)
+app.include_router(security_router)
+app.include_router(conversations_router)
+app.include_router(songs_router)
+app.include_router(privacy_router)
+app.include_router(singing_router)
 logger = logging.getLogger("deepvocal.requests")
 
 
@@ -47,6 +61,7 @@ async def trace_request(request: Request, call_next):
     request_id = str(uuid4())
     started = time.monotonic()
     response = await call_next(request)
+    metrics[(str(response.status_code),)] += 1
     response.headers["X-Request-ID"] = request_id
     logger.info(
         "request id=%s method=%s status=%s duration_ms=%d",
@@ -67,7 +82,7 @@ async def ready():
     async def check():
         async with _session_factory()() as session:
             version = await session.scalar(
-                text("SELECT 1 FROM alembic_version WHERE version_num='0007_worker_presence'")
+                text("SELECT 1 FROM alembic_version WHERE version_num='0009_inference_limits'")
             )
             if version != 1:
                 raise RuntimeError("migration required")
@@ -88,8 +103,10 @@ async def ready():
 
 
 @app.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
-    return HealthResponse(status="ok", mode=settings.deepvocal_mode, singing_enabled=False)
+async def health() -> HealthResponse:
+    return HealthResponse(
+        status="ok", mode=settings.deepvocal_mode, singing_enabled=await singing_ready(settings)
+    )
 
 
 @app.get("/v1/me", response_model=AuthUserResponse)
@@ -128,15 +145,16 @@ def decide_route(request: RouteRequest) -> RouteResponse:
 
 
 @app.get("/v1/agents/{agent}/capabilities", response_model=CapabilityResponse)
-def capabilities(agent: str) -> CapabilityResponse:
+async def capabilities(agent: str) -> CapabilityResponse:
     if agent not in {"knowledge", "assessment", "planning", "singing"}:
         raise HTTPException(404, "unknown agent")
     if agent == "singing":
+        ready = await singing_ready(settings)
         return CapabilityResponse(
             agent=agent,
-            enabled=False,
-            status="disabled",
-            reason="external singing service protocol is not configured",
+            enabled=ready,
+            status="available" if ready else "disabled",
+            reason="reference-conditioned audio generation" if ready else "generation unavailable",
         )
     if agent == "knowledge":
         from app.knowledge.budget import BudgetBlocked, price_quote
@@ -165,9 +183,9 @@ def capabilities(agent: str) -> CapabilityResponse:
     if agent == "assessment":
         return CapabilityResponse(
             agent=agent,
-            enabled=False,
-            status="disabled",
-            reason="offline measurement available; presign-only uploads remain pending",
+            enabled=True,
+            status="available",
+            reason="verified audio required",
         )
     return CapabilityResponse(
         agent=agent,
@@ -190,3 +208,16 @@ async def model_usage(user: User):
     from app.knowledge.budget import ModelBudget
 
     return await ModelBudget(settings).own_usage(user["id"])
+
+
+@app.get("/internal/metrics", include_in_schema=False)
+async def internal_metrics(request: Request, session: Session):
+    import hmac
+
+    from app.security import metrics_response
+
+    if len(settings.metrics_token) < 32 or not hmac.compare_digest(
+        request.headers.get("Authorization", ""), "Bearer " + settings.metrics_token
+    ):
+        raise HTTPException(401, "metrics credential required")
+    return await metrics_response(session)

@@ -129,6 +129,14 @@ async def finish(
     retry = bool(error and retryable and job["attempt"] < job["max_attempts"])
     status = "QUEUED" if retry else "FAILED" if error else "SUCCEEDED"
     async with sessions() as session:
+        if job["kind"] == "singing":
+            # Consent revocation and privacy erasure take the same owner lock first.
+            active = await session.scalar(
+                text("SELECT status FROM users WHERE id=:owner FOR UPDATE"),
+                {"owner": str(job["owner_id"])},
+            )
+            if active != "active":
+                return False
         row = (
             (
                 await session.execute(
@@ -157,7 +165,14 @@ async def finish(
         )
         if row and status == "FAILED":
             await dead_event(session, row)
+        if row:
+            from app.upload_workflows import finish_verification
+
+            await finish_verification(session, job, result, error, retry)
         if row and status == "SUCCEEDED" and result is not None:
+            from app.singing import publish_generation
+
+            result = await publish_generation(session, job, result)
             from app.artifacts import materialize
 
             result = await materialize(session, job, result)
@@ -175,6 +190,10 @@ async def finish(
 
 
 async def default_handler(job: dict) -> dict:
+    if job["kind"] == "upload_verify":
+        from app.upload_workflows import verify_upload
+
+        return await verify_upload(job)
     if job["kind"] == "memory":
         # All mutations happen in fenced finish, in the same transaction as job success.
         return {"status": "prepared"}
@@ -215,8 +234,40 @@ async def process_one(
 
 
 async def process_claimed(sessions, handler, job):
+    from contextlib import suppress
+
+    async def watch_claim():
+        while True:
+            await asyncio.sleep(0.5)
+            async with sessions() as session:
+                active = await session.scalar(
+                    text("""SELECT 1 FROM jobs
+                  WHERE id=:id AND owner_id=:owner AND status='RUNNING'
+                  AND worker_token=:token AND version=:version
+                  AND cancel_requested=false AND lease_until>now()"""),
+                    {
+                        "id": str(job["id"]),
+                        "owner": str(job["owner_id"]),
+                        "token": str(job["worker_token"]),
+                        "version": job["version"],
+                    },
+                )
+            if not active:
+                return
+
+    task = asyncio.create_task(handler(job))
+    watcher = asyncio.create_task(watch_claim())
     try:
-        result = await asyncio.wait_for(handler(job), timeout=job["timeout_seconds"])
+        finished, _ = await asyncio.wait(
+            {task, watcher}, timeout=job["timeout_seconds"], return_when=asyncio.FIRST_COMPLETED
+        )
+        if watcher in finished:
+            # Cancellation, ownership loss and monitor failures all prevent publication.
+            await watcher
+            return
+        if task not in finished:
+            raise TimeoutError()
+        result = await task
     except (TimeoutError, RetryableJobError) as exc:
         await finish(
             sessions,
@@ -232,6 +283,13 @@ async def process_claimed(sessions, handler, job):
         await finish(sessions, job, None, "INTERNAL_ERROR")
     else:
         await finish(sessions, job, result, None)
+    finally:
+        task.cancel()
+        watcher.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await task
+        with suppress(asyncio.CancelledError, Exception):
+            await watcher
 
 
 async def tick(sessions, redis: Redis, consumer: str, state: WorkerState | None = None) -> None:
@@ -281,9 +339,18 @@ async def run(once: bool = False) -> None:
     try:
         sessions = _session_factory()
         async with worker_presence(sessions, consumer) as state:
+            next_maintenance = time.monotonic() + 60
             while True:
                 try:
                     await tick(sessions, redis, consumer, state)
+                    if time.monotonic() >= next_maintenance:
+                        from app.privacy import housekeep
+
+                        try:
+                            await housekeep(sessions)
+                        except Exception:  # noqa: BLE001 -- maintenance must not stop task consumption
+                            logger.warning("maintenance_degraded code=HOUSEKEEPING_RETRY")
+                        next_maintenance = time.monotonic() + 60
                 except SQLAlchemyError:
                     state.phase, state.last_error_code = "degraded", "DATABASE_UNAVAILABLE"
                     logger.warning("worker_degraded code=DATABASE_UNAVAILABLE; retrying")

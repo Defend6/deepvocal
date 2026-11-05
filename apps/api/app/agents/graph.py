@@ -28,6 +28,8 @@ class AgentState(TypedDict, total=False):
     route_reason: str
     tool_trace: list[str]
     output: dict
+    followup_plan: dict | None
+    measurement_report: dict
 
 
 class ToolBoundaryError(RuntimeError):
@@ -102,8 +104,33 @@ def build_graph(registry: ToolRegistry, checkpointer=None):
     graph.add_conditional_edges(
         "supervisor", lambda state: state["agent"], {name: name for name in TOOLS}
     )
+
+    async def followup(state):
+        result = state["output"]
+        # No plan is produced from failed measurements.
+        if result.get("status") != "measured":
+            return {}
+
+        plan = await registry.call(
+            "planning",
+            "plans.create",
+            {**state, "input": state["followup_plan"], "measurement_report": result},
+        )
+        return {
+            "output": {**result, "followup": plan},
+            "tool_trace": state.get("tool_trace", []) + ["plans.create"],
+        }
+
+    graph.add_node("followup_plan", followup)
+    graph.add_conditional_edges(
+        "assessment",
+        lambda s: "followup_plan" if s.get("followup_plan") else END,
+        {"followup_plan": "followup_plan", END: END},
+    )
+    graph.add_edge("followup_plan", END)
     for name in TOOLS:
-        graph.add_edge(name, END)
+        if name != "assessment":
+            graph.add_edge(name, END)
     return graph.compile(checkpointer=checkpointer)
 
 

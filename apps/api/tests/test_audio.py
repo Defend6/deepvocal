@@ -73,7 +73,7 @@ def test_reference_input_and_plan_constraints():
         AssessmentInput(profile="long_tone")
     result = create_plan(PlanningInput(minutes=10, goal="pitch"))
     assert sum(item["seconds"] for item in result["plan"]["exercises"]) == 600
-    assert result["plan"]["basis"] == "user_goal_and_engineering_template"
+    assert result["plan"]["basis"] == "report_and_confirmed_feedback_v2"
     assert create_plan(PlanningInput(discomfort=True))["status"] == "refused"
     with pytest.raises(ValueError):
         PlanEdit(

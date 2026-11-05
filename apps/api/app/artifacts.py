@@ -42,7 +42,14 @@ async def materialize(session, job: dict, result: dict) -> dict:
             text(f"SELECT id FROM {table} WHERE source_job_id=:job AND owner_id=:owner"),
             {"job": str(job["id"]), "owner": str(job["owner_id"])},
         )
-    return {**result, key: str(artifact_id)}
+    result = {**result, key: str(artifact_id)}
+    if kind == "assessment" and result.get("followup", {}).get("status") == "planned":
+        plan = {**result["followup"]["plan"], "report_id": str(artifact_id)}
+        followup = await materialize(
+            session, {**job, "kind": "planning"}, {"status": "planned", "plan": plan}
+        )
+        result["plan_id"] = followup["plan_id"]
+    return result
 
 
 async def owned(session, table: str, artifact_id: UUID, owner: str, lock=False):
@@ -189,3 +196,76 @@ async def record_practice(artifact_id: UUID, request: PracticeCreate, user: User
 @router.get("/practice")
 async def practice(user: User, session: Session):
     return await list_artifacts(session, "practice_records", user["id"])
+
+
+@router.post("/plans/{artifact_id}/adapt")
+async def adapt_plan(artifact_id: UUID, user: User, session: Session):
+    from app.planning import PlanningInput, create_plan
+
+    row = await owned(session, "practice_plans", artifact_id, user["id"], lock=True)
+    history = (
+        (
+            await session.execute(
+                text("""SELECT payload FROM practice_records
+      WHERE owner_id=:owner AND plan_id=:plan AND plan_version=:version
+      ORDER BY created_at DESC,id DESC LIMIT 3"""),
+                {"owner": user["id"], "plan": str(artifact_id), "version": row["version"]},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if not history:
+        raise HTTPException(409, "record feedback for this plan version before adapting")
+    report_id = row["payload"].get("report_id")
+    report = (
+        await owned(session, "assessment_reports", UUID(report_id), user["id"])
+        if report_id
+        else None
+    )
+    result = create_plan(
+        PlanningInput(
+            goal=row["payload"]["goal"],
+            minutes=max(5, min(30, int(row["payload"]["minutes"]))),
+            days=row["payload"]["days"],
+            report_id=report_id,
+        ),
+        report["payload"] if report else None,
+        [dict(h) for h in history],
+    )
+    if result["status"] != "planned":
+        return result
+    await session.execute(
+        text("""UPDATE practice_plans SET payload=CAST(:payload AS jsonb),
+      version=version+1,updated_at=now() WHERE id=:id AND owner_id=:owner"""),
+        {"payload": json.dumps(result["plan"]), "id": str(artifact_id), "owner": user["id"]},
+    )
+    from app.security import audit
+
+    await audit(session, user["id"], "plan.adapted", str(artifact_id))
+    await session.commit()
+    return await plan(artifact_id, user, session)
+
+
+@router.get("/progress")
+async def progress(user: User, session: Session):
+    records = await list_artifacts(session, "practice_records", user["id"])
+    reports = await list_artifacts(session, "assessment_reports", user["id"])
+    return {
+        "practice_count": len(records),
+        "practice_seconds": sum(r["payload"].get("duration_seconds", 0) for r in records),
+        "reports": [
+            {
+                "id": r["id"],
+                "created_at": r["created_at"],
+                "profile": r["payload"].get("profile"),
+                "algorithm": r["payload"].get("algorithm_version"),
+                "ruleset": r["payload"].get("ruleset_version"),
+                "reference_fingerprint": r["payload"].get("reference_fingerprint"),
+                "quality": r["payload"].get("quality"),
+                "total": r["payload"].get("total"),
+            }
+            for r in reversed(reports)
+        ],
+        "scope": "most recent 100 reports and practice records",
+    }

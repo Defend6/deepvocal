@@ -8,7 +8,7 @@ from pathlib import Path
 _job_handle = None
 
 
-def resource_limits(memory_mib: int, cpu_seconds: int):
+def resource_limits(memory_mib: int, cpu_seconds: int, max_processes: int = 1, file_mib: int = 16):
     global _job_handle
     if sys.platform == "win32":
         import ctypes
@@ -51,7 +51,7 @@ def resource_limits(memory_mib: int, cpu_seconds: int):
         handle = kernel.CreateJobObjectW(None, None)
         limits = Extended()
         limits.basic.flags = 0x100 | 0x8 | 0x2000
-        limits.basic.active = 1
+        limits.basic.active = max_processes
         limits.process_memory = memory_mib * 1024 * 1024
         if (
             not handle
@@ -69,7 +69,7 @@ def resource_limits(memory_mib: int, cpu_seconds: int):
         memory = memory_mib * 1024 * 1024
         resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (16 * 1024 * 1024, 16 * 1024 * 1024))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (file_mib * 1024 * 1024, file_mib * 1024 * 1024))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         return "linux-rlimit"
     raise RuntimeError("unsupported resource limit platform")

@@ -39,8 +39,8 @@ def test_local_identity_requires_explicit_header() -> None:
         assert error.value.status_code == 401
 
 
-def test_only_local_test_configuration_is_supported() -> None:
-    with pytest.raises(ValueError, match="only local test identity"):
+def test_auth_configuration_requires_complete_oidc_and_disallows_production_debug() -> None:
+    with pytest.raises(ValueError, match="OIDC audience"):
         Settings(auth_mode="oidc")
     with pytest.raises(ValueError, match="only allowed"):
         Settings(deepvocal_mode="production")
@@ -48,13 +48,13 @@ def test_only_local_test_configuration_is_supported() -> None:
     assert settings.oidc_issuer == "https://reserved.example.test"
 
 
-def test_presign_api_requires_identity_and_has_no_completion_endpoint() -> None:
+def test_upload_endpoints_require_identity() -> None:
     client = TestClient(app)
     assert client.get("/v1/me").status_code == 401
     assert client.get("/v1/operations/diagnostics").status_code == 401
     assert client.post("/v1/uploads", json={}).status_code == 401
-    assert client.post("/v1/uploads/asset/complete").status_code == 404
-    assert "/v1/uploads/{asset_id}/complete" not in app.openapi()["paths"]
+    assert client.post("/v1/uploads/asset/complete").status_code == 401
+    assert "/v1/uploads/{asset_id}/complete" in app.openapi()["paths"]
 
 
 def test_upload_request_rejects_client_supplied_owner() -> None:

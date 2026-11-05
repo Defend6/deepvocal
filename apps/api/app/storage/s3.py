@@ -46,6 +46,7 @@ class S3Storage:
     @classmethod
     def from_settings(cls, settings: Any) -> S3Storage:
         import boto3
+        from botocore.config import Config
 
         config = S3StorageConfig(
             endpoint=settings.s3_endpoint,
@@ -61,6 +62,7 @@ class S3Storage:
             aws_access_key_id=config.access_key,
             aws_secret_access_key=config.secret_key,
             region_name=config.region,
+            config=Config(connect_timeout=5, read_timeout=30, retries={"max_attempts": 2}),
         )
         storage = cls(config, client)
         public_endpoint = getattr(settings, "s3_public_endpoint", "")

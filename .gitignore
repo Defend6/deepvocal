@@ -39,6 +39,7 @@ apps/web/dist/
 # IDE / OS
 .idea/
 .vscode/
+.worktrees/
 Thumbs.db
 Desktop.ini
 

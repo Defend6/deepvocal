@@ -1,0 +1,21 @@
+{
+  "realm": "deepvocal",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": true,
+  "sslRequired": "external",
+  "roles": {"realm": [{"name": "deepvocal-admin"}, {"name": "learner"}]},
+  "clients": [{
+    "clientId": "deepvocal-web", "enabled": true, "publicClient": true,
+    "standardFlowEnabled": true, "directAccessGrantsEnabled": false,
+    "redirectUris": ["http://127.0.0.1:8080/auth/callback", "http://localhost:8080/auth/callback"],
+    "webOrigins": ["http://127.0.0.1:8080", "http://localhost:8080"],
+    "attributes": {"pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "+"},
+    "protocolMappers": [{
+      "name": "deepvocal-api-audience", "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "config": {"included.custom.audience": "deepvocal-api", "id.token.claim": "false", "access.token.claim": "true"}
+    }]
+  }]
+}

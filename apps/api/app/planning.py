@@ -50,13 +50,39 @@ class PracticeCreate(BaseModel):
     note: str = Field(default="", max_length=1000)
 
 
-def create_plan(config: PlanningInput, report: dict | None = None) -> dict:
+def create_plan(
+    config: PlanningInput, report: dict | None = None, history: list | None = None
+) -> dict:
     if config.discomfort:
         return {
             "status": "refused",
             "reason": "DISCOMFORT_STOP_PRACTICE",
             "message": "先停止练声；持续疼痛或不适时寻求专业帮助。",
         }
+    history = history or []
+    adaptation = []
+    config = config.model_copy(deep=True)
+    if report and report.get("quality") == "usable" and config.goal == "foundation":
+        candidates = {
+            key: metric["value"]
+            for key, metric in report.get("dimensions", {}).items()
+            if key in {"pitch", "rhythm", "stability"}
+            and metric.get("available")
+            and isinstance(metric.get("value"), (float, int))
+        }
+        if candidates:
+            config.goal = min(candidates, key=candidates.get)
+            adaptation.append("依据本次报告中较弱的可用维度安排重点练习。")
+    recent = [item.get("payload", item) for item in history[:3]]
+    if any(item.get("discomfort") for item in recent):
+        return {
+            "status": "refused",
+            "reason": "DISCOMFORT_STOP_PRACTICE",
+            "message": "最近练习记录有不适，请先确认已恢复，再重新安排练习。",
+        }
+    if recent and sum(item.get("difficulty", 3) for item in recent) / len(recent) >= 4:
+        config.minutes = max(5, int(config.minutes * 0.8))
+        adaptation.append("近期反馈难度较高，已减少本次练习时长。")
     instructions = {
         "foundation": ("舒适音区短音", "用轻松音量做短音，每次之间自然休息，不追求极限音高。"),
         "pitch": ("参考音模唱", "选舒适参考音，先听后短句模唱；使用相同参考与移调比较。"),
@@ -109,10 +135,20 @@ def create_plan(config: PlanningInput, report: dict | None = None) -> dict:
             "minutes": config.minutes,
             "exercises": exercises,
             "observations": observations,
-            "basis": "user_goal_and_engineering_template",
+            "adaptation": adaptation,
+            "basis": "report_and_confirmed_feedback_v2",
+            "daily_schedule": [
+                {
+                    "day": day,
+                    "focus": config.goal,
+                    "minutes": config.minutes,
+                    "instruction": "完成后记录难度与状态，再决定下一次安排。",
+                }
+                for day in range(1, config.days + 1)
+            ],
             "report_id": str(config.report_id) if config.report_id else None,
             "ruleset_version": "practice-template-v1",
-            "notice": "工程练习模板，尚未经声乐教师审核；支持编辑，不替代专业教学。",
+            "notice": "按舒适状态练习，可随时调整或提前结束。",
             "stop_rule": "疼痛、持续沙哑或明显不适时停止；持续问题请寻求专业帮助。",
         },
     }

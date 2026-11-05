@@ -1,0 +1,17 @@
+services:
+  identity:
+    image: quay.io/keycloak/keycloak:26.4.2
+    command: ["start-dev", "--import-realm", "--http-port=8180"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${IDENTITY_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:?Set a private identity administrator password}
+      KC_HOSTNAME: http://127.0.0.1:8180
+      KC_HEALTH_ENABLED: "true"
+      JAVA_OPTS_KC_HEAP: "-XX:MaxRAMPercentage=65 -XX:InitialRAMPercentage=20"
+    ports: ["127.0.0.1:8180:8180"]
+    volumes:
+      - ./identity/realm.json:/opt/keycloak/data/import/deepvocal.json:ro
+      - identity_data:/opt/keycloak/data
+    mem_limit: 2g
+volumes:
+  identity_data:

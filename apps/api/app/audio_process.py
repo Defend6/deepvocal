@@ -9,6 +9,10 @@ import tempfile
 import time
 from pathlib import Path
 
+from app.process_control import terminate_tree
+
+launch_decoder = subprocess.Popen
+
 
 async def assess_isolated(data: bytes, config, settings) -> dict:
     if not data or len(data) > settings.max_audio_size_bytes:
@@ -52,7 +56,7 @@ async def assess_isolated(data: bytes, config, settings) -> dict:
             }
         )
         # Popen works with Windows Selector loops; asyncio subprocess APIs do not.
-        process = subprocess.Popen(  # noqa: ASYNC220 -- Selector loop on Windows; startup only, polling is async
+        process = launch_decoder(
             [sys.executable, "-m", "app.audio_worker", directory],
             cwd=directory,
             env=environment,
@@ -81,6 +85,4 @@ async def assess_isolated(data: bytes, config, settings) -> dict:
             return payload["result"]
         finally:
             # Also runs on CancelledError from worker timeout; no orphan decoder threads.
-            if process.poll() is None:
-                process.kill()
-            process.wait(timeout=5)
+            await asyncio.to_thread(terminate_tree, process)

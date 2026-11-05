@@ -1,0 +1,48 @@
+services:
+  migrate:
+    environment: &production_environment
+      DEEPVOCAL_MODE: production
+      AUTH_MODE: oidc
+      OIDC_ISSUER: ${OIDC_ISSUER:?Set HTTPS issuer}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:?Set API audience}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:?Set HTTPS JWKS URL}
+      DATABASE_URL: ${PRODUCTION_DATABASE_URL:?Set a correctly URL encoded PostgreSQL connection string}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?Set private object store access key}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?Set private object store secret}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?Set private graph database password}
+      S3_PUBLIC_ENDPOINT: https://${OBJECTS_DOMAIN:?Set object store hostname}
+  api:
+    environment: *production_environment
+    restart: unless-stopped
+  worker:
+    environment: *production_environment
+    restart: unless-stopped
+  web:
+    restart: unless-stopped
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the existing or newly provisioned database password}
+    restart: unless-stopped
+  redis:
+    restart: unless-stopped
+  object-store:
+    restart: unless-stopped
+  neo4j:
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set graph password}
+    restart: unless-stopped
+  caddy:
+    image: caddy:2.10-alpine
+    ports: ["80:80", "443:443"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set application hostname}
+      OBJECTS_DOMAIN: ${OBJECTS_DOMAIN:?Set object store hostname}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:

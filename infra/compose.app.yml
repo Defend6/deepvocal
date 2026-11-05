@@ -5,8 +5,19 @@ services:
       dockerfile: apps/api/Dockerfile
     image: deepvocal-api:local
     environment: &app_environment
-      DEEPVOCAL_MODE: development
-      AUTH_MODE: local
+      DEEPVOCAL_MODE: ${DEEPVOCAL_MODE:-development}
+      AUTH_MODE: ${AUTH_MODE:-local}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_AUDIENCE: ${OIDC_AUDIENCE:-deepvocal-api}
+      OIDC_JWKS_URL: ${OIDC_JWKS_URL:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-deepvocal-web}
+      REQUEST_LIMIT_PER_MINUTE: ${REQUEST_LIMIT_PER_MINUTE:-120}
+      JOBS_DAILY_LIMIT: ${JOBS_DAILY_LIMIT:-100}
+      JOBS_CONCURRENT_LIMIT: ${JOBS_CONCURRENT_LIMIT:-5}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      SINGING_ENABLED: ${SINGING_ENABLED:-false}
+      SINGING_SERVICE_URL: ${SINGING_CONTAINER_SERVICE_URL:-http://host.docker.internal:8090}
+      SINGING_SERVICE_TOKEN: ${SINGING_SERVICE_TOKEN:-}
       DATABASE_URL: postgresql+asyncpg://deepvocal:deepvocal@postgres:5432/deepvocal
       REDIS_URL: redis://redis:6379/0
       S3_ENDPOINT: http://object-store:9000
@@ -14,7 +25,7 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-deepvocal}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-change-me-local-only}
       NEO4J_URI: bolt://neo4j:7687
-      NEO4J_PASSWORD: change-me-local-only
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-change-me-local-only}
       MILVUS_URI: http://milvus:19530
       MODEL_API_KEY: ${MODEL_API_KEY:-}
       MODEL_MONTHLY_LIMIT_MINOR: ${MODEL_MONTHLY_LIMIT_MINOR:-0}
@@ -48,6 +59,8 @@ services:
     depends_on:
       migrate: {condition: service_completed_successfully}
     ports: ["127.0.0.1:8000:8000"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready',timeout=6)"]
       interval: 10s
@@ -60,6 +73,8 @@ services:
     depends_on:
       migrate: {condition: service_completed_successfully}
     command: ["python", "-m", "app.worker"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
   web:
     build:
       context: ..

@@ -43,7 +43,7 @@ def test_deadline_and_cancellation_kill_process_and_strip_secrets(tmp_path, monk
         launched.append(process)
         return process
 
-    monkeypatch.setattr("app.audio_process.subprocess.Popen", slow)
+    monkeypatch.setattr("app.audio_process.launch_decoder", slow)
     settings = Settings(audio_runtime_root=str(tmp_path), audio_process_timeout_seconds=1)
     with pytest.raises(ValueError, match="AUDIO_PROCESS_TIMEOUT"):
         asyncio.run(assess_isolated(b"test", AssessmentInput(), settings))

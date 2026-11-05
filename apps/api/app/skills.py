@@ -19,7 +19,7 @@ STEPS = {
     "coverage": "测量整个目标窗口；不挑选高分片段，不自动折叠八度。",
     "constraints": "计划每天5至30分钟，包含休息，用户可提前停止。",
     "feedback": "仅记录用户真实反馈；不从测量猜测疾病或发声原因。",
-    "capabilities": "仅查询生成服务能力；未配置服务不创建音频或费用。",
+    "capabilities": "先确认声音使用授权和服务能力，再生成音频；未配置服务不创建虚构结果。",
 }
 AGENT_STEPS = {
     "knowledge": {"evidence"},
@@ -205,7 +205,7 @@ async def from_job(job_id: UUID, user: User, session: Session):
     row = (
         (
             await session.execute(
-                text("SELECT kind,status FROM jobs WHERE id=:id AND owner_id=:owner"),
+                text("SELECT kind,status,result FROM jobs WHERE id=:id AND owner_id=:owner"),
                 {"id": str(job_id), "owner": user["id"]},
             )
         )
@@ -216,7 +216,7 @@ async def from_job(job_id: UUID, user: User, session: Session):
         raise HTTPException(404, "job not found")
     if row["kind"] not in AGENT_STEPS or row["status"] != "SUCCEEDED":
         raise HTTPException(409, "completed supported task required")
-    return await propose(
+    candidate = await propose(
         Candidate(
             agent=row["kind"],
             skill_id=f"{row['kind']}-trace-template",
@@ -225,6 +225,31 @@ async def from_job(job_id: UUID, user: User, session: Session):
         user,
         session,
     )
+    result = row["result"] or {}
+    # Extract only structured execution facts, never prompts or uploaded audio.
+    experience = {
+        "source_job_id": str(job_id),
+        "result_status": result.get("status"),
+        "quality_gate_passed": result.get("quality") == "usable"
+        if row["kind"] == "assessment"
+        else None,
+        "has_evidence": bool(result.get("citations")),
+        "has_followup": bool(result.get("plan_id")),
+        "needs_human_review": True,
+        "extraction_version": "structured-experience-v1",
+    }
+    await session.execute(
+        text("""UPDATE skill_versions SET critic=critic || CAST(:evidence AS jsonb)
+      WHERE id=:id AND owner_id=:owner"""),
+        {
+            "id": candidate["id"],
+            "owner": user["id"],
+            "evidence": json.dumps({"experience": experience}),
+        },
+    )
+    await session.commit()
+    candidate["critic"] = {**candidate["critic"], "experience": experience}
+    return candidate
 
 
 @router.post("/{version_id}/transition")

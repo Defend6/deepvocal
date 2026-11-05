@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.agents.router import RuleRouter
+from app.config import Settings
 from app.main import app
 from app.storage.s3 import S3Storage, S3StorageConfig
 
@@ -33,7 +34,7 @@ def test_unknown_intent_clarifies() -> None:
         ("音准", "knowledge"),
         ("录音中音高偏差的原理是什么", "knowledge"),
         ("什么是歌声生成", "knowledge"),
-        ("请分析我的录音，并制定练习计划", "clarify"),
+        ("请分析我的录音，并制定练习计划", "assessment"),
         ("生成歌声然后制定计划", "clarify"),
         ("请给我生成一段歌声", "singing"),
         ("帮我安排一个音准练习", "planning"),
@@ -77,7 +78,10 @@ def test_router_endpoint_returns_structured_decision() -> None:
     assert "audio.inspect" in payload["tool_allowlist"]
 
 
-def test_health_endpoint_reports_mock_capabilities() -> None:
+def test_health_endpoint_reports_mock_capabilities(monkeypatch) -> None:
+    from app import main
+
+    monkeypatch.setattr(main, "settings", Settings(singing_enabled=False))
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"

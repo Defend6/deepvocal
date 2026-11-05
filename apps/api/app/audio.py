@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import math
 from typing import Literal
+from uuid import UUID
 
 import numpy as np
 import soundfile as sf
@@ -38,12 +39,16 @@ class AssessmentInput(BaseModel):
     tempo_ratio: float = Field(default=1.0, ge=0.8, le=1.25)
     text: str = Field(default="", max_length=4000)
     input_asset_id: str | None = None
+    song_id: UUID | None = None
+    auto_align: bool = False
+    channel_mode: Literal["loudest", "left", "right", "center"] = "loudest"
+    separate_vocals: bool = False
 
     @model_validator(mode="after")
     def profile_requirements(self):
         if self.profile == "long_tone" and self.goal_duration_ms is None:
             raise ValueError("long_tone requires a target duration before analysis")
-        if self.profile == "reference_song" and not self.reference_notes:
+        if self.profile == "reference_song" and not self.reference_notes and not self.song_id:
             raise ValueError("reference_song requires reference notes")
         for previous, current in zip(self.reference_notes, self.reference_notes[1:]):
             if current.start_ms < previous.end_ms:
@@ -51,7 +56,7 @@ class AssessmentInput(BaseModel):
         return self
 
 
-def decode_audio(data: bytes) -> tuple[np.ndarray, int]:
+def decode_audio(data: bytes, channel_mode: str = "loudest") -> tuple[np.ndarray, int]:
     if not data or len(data) > 104857600:
         raise ValueError("AUDIO_SIZE_INVALID")
     try:
@@ -72,7 +77,18 @@ def decode_audio(data: bytes) -> tuple[np.ndarray, int]:
     if not np.isfinite(samples).all():
         raise ValueError("NONFINITE_AUDIO")
     # Opposite-phase stereo is not silently averaged into a fake silence result.
-    mono = samples[:, np.argmax(np.mean(samples.astype(np.float64) ** 2, axis=0))]
+    if channel_mode == "center":
+        if samples.shape[1] != 2:
+            raise ValueError("AUDIO_STEREO_REQUIRED")
+        # Mid-channel extraction preserves centered voice, but is not neural stem separation.
+        mono = np.mean(samples, axis=1)
+    elif channel_mode in {"left", "right"}:
+        index = 0 if channel_mode == "left" else 1
+        if samples.shape[1] <= index:
+            raise ValueError("AUDIO_CHANNEL_UNAVAILABLE")
+        mono = samples[:, index]
+    else:
+        mono = samples[:, np.argmax(np.mean(samples.astype(np.float64) ** 2, axis=0))]
     if rate != 16000:
         divisor = math.gcd(rate, 16000)
         mono = resample_poly(mono, 16000 // divisor, rate // divisor)
@@ -307,7 +323,50 @@ def reference_scores(report, times, f0, valid, hop, config):
 
 
 def assess_bytes(data: bytes, config: AssessmentInput) -> dict:
-    samples, rate = decode_audio(data)
+    samples, rate = decode_audio(data, config.channel_mode)
     measurements = track(samples, rate)
     clipping = float(np.mean(np.abs(samples) >= 0.99))
-    return score_measurements(measurements, config, len(samples) / rate, clipping)
+    alignment = None
+    if config.auto_align and config.reference_notes:
+        from app.alignment import global_alignment
+
+        alignment = global_alignment(measurements, config.reference_notes, config.semitones)
+        if alignment["available"]:
+            config = config.model_copy(
+                update={
+                    "offset_ms": alignment["offset_ms"],
+                    "tempo_ratio": alignment["tempo_ratio"],
+                }
+            )
+    report = score_measurements(measurements, config, len(samples) / rate, clipping)
+    report["alignment"] = alignment
+    report["channel_mode"] = config.channel_mode
+    if config.reference_notes:
+        import hashlib
+        import json
+
+        report["reference_fingerprint"] = hashlib.sha256(
+            json.dumps(
+                {
+                    "notes": [n.model_dump() for n in config.reference_notes],
+                    "semitones": config.semitones,
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        report["reference_contour"] = [
+            {
+                "start": (n.start_ms / config.tempo_ratio + config.offset_ms) / 1000,
+                "end": (n.end_ms / config.tempo_ratio + config.offset_ms) / 1000,
+                "hz": 440 * 2 ** ((n.midi + config.semitones - 69) / 12),
+            }
+            for n in config.reference_notes
+        ]
+    step = max(1, len(measurements["times"]) // 1500)
+    report["pitch_contour"] = [
+        {"time": t, "hz": f}
+        for t, f in zip(measurements["times"][::step], measurements["f0"][::step], strict=True)
+    ]
+    if alignment and not alignment["available"]:
+        report["total"] = unavailable("AUTOMATIC_ALIGNMENT_UNRELIABLE")
+    return report

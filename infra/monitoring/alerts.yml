@@ -1,0 +1,18 @@
+groups:
+  - name: deepvocal
+    rules:
+      - alert: DeepVocalUnavailable
+        expr: up{job="deepvocal"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "DeepVocal API metrics unavailable"}
+      - alert: DeepVocalTaskBacklog
+        expr: deepvocal_jobs{status="QUEUED"} > 50
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "DeepVocal task backlog exceeds 50"}
+      - alert: DeepVocalErrors
+        expr: sum(rate(deepvocal_http_requests_total{status=~"5.."}[5m])) > 0.1
+        for: 3m
+        labels: {severity: warning}
+        annotations: {summary: "DeepVocal server error rate elevated"}

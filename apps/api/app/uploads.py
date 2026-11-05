@@ -35,11 +35,11 @@ class UploadService:
         await self.session.execute(
             text("""
                 INSERT INTO audio_assets
-                    (id, owner_id, object_key, sha256, content_type, size_bytes, purpose,
+                    (id, owner_id, object_key, sha256, content_type, size_bytes, purpose, filename,
                      status, upload_expires_at)
                 VALUES
                     (:id, :owner_id, :object_key, :sha256, :content_type, :size_bytes,
-                     :purpose, 'pending', :expires_at)
+                     :purpose, :filename, 'pending', :expires_at)
             """),
             {
                 "id": asset_id,
@@ -49,6 +49,7 @@ class UploadService:
                 "content_type": request.content_type,
                 "size_bytes": request.size_bytes,
                 "purpose": request.purpose,
+                "filename": request.filename,
                 "expires_at": expires_at,
             },
         )

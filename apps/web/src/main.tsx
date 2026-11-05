@@ -14,6 +14,9 @@ import { labels, request } from "./api";
 import { Governance } from "./Governance";
 import { Operations } from "./Operations";
 import "./styles.css";
+import { authConfig, initializeAuth, login, logout } from "./auth";
+import { Studio } from "./Studio";
+import { Progress } from "./Progress";
 
 type Agent = "knowledge" | "assessment" | "planning" | "singing";
 type Metric = {
@@ -55,6 +58,9 @@ type Result = {
     coverage: number;
     mean_abs_cents: number | null;
   }[];
+  pitch_contour?: { time: number; hz: number | null }[];
+  reference_contour?: {start: number; end: number; hz: number}[];
+  asset_id?: string;
 };
 type Job = {
   id: string;
@@ -103,7 +109,7 @@ const agents = [
     id: "assessment" as Agent,
     label: "录音诊断与全曲测评",
     icon: Activity,
-    detail: "工程测量 · 分段报告",
+    detail: "音高节奏 · 分段报告",
   },
   {
     id: "planning" as Agent,
@@ -115,7 +121,7 @@ const agents = [
     id: "singing" as Agent,
     label: "个性化歌声生成",
     icon: Music2,
-    detail: "外部服务待接入",
+    detail: "你的旋律 · 个性演唱",
   },
 ];
 const goals: Record<string, string> = {
@@ -126,7 +132,28 @@ const goals: Record<string, string> = {
 };
 const done = (job: Job) =>
   ["SUCCEEDED", "FAILED", "CANCELLED"].includes(job.status);
-const human = (text?: string | null) => (text ? (labels[text] ?? text) : "");
+
+function PitchChart({points, reference = []}: {points: {time: number; hz: number | null}[];
+  reference?: {start: number; end: number; hz: number}[]}) {
+  const voiced = points.filter(p => p.hz && p.hz > 0);
+  if (!voiced.length) return <p>未检测到稳定音高，请尝试更清晰的录音。</p>;
+  const maxTime = Math.max(1, points[points.length - 1].time, ...reference.map(p => p.end));
+  const midi = (hz: number) => 69 + 12 * Math.log2(hz / 440);
+  const values = [...voiced.map(p => midi(p.hz!)), ...reference.map(p => midi(p.hz))];
+  const low = Math.min(...values) - 1, high = Math.max(...values) + 1;
+  return <figure className="pitch-chart"><figcaption>演唱音高走势{reference.length > 0 && " · 紫色演唱 / 绿色参考"}</figcaption>
+    <svg viewBox="0 0 800 200" role="img" aria-label="录音音高随时间变化曲线">
+      <line x1="20" x2="790" y1="180" y2="180" stroke="#ccd2d8" />
+      {reference.map((p, i) => <line key={`r${i}`} x1={20 + Math.max(0, p.start) / maxTime * 760}
+        x2={20 + Math.max(0, p.end) / maxTime * 760}
+        y1={175 - (midi(p.hz) - low) / (high - low) * 155}
+        y2={175 - (midi(p.hz) - low) / (high - low) * 155} stroke="#24866b" strokeWidth="3" />)}
+      {voiced.map((p, i) => <circle key={i} cx={20 + p.time / maxTime * 760}
+        cy={175 - (midi(p.hz!) - low) / (high - low) * 155} r="1.8" fill="#6854d8" />)}
+      <text x="20" y="198">0 秒</text><text x="720" y="198">{maxTime.toFixed(1)} 秒</text>
+    </svg></figure>;
+}
+const human = (text?: string | null) => text ? (labels[text] ?? (/^[A-Z][A-Z_]+$/.test(text) ? "暂时无法提供结果，请调整输入后重试。" : text)) : "";
 
 function Evidence({
   items,
@@ -137,14 +164,11 @@ function Evidence({
 }) {
   return (
     <section className="evidence">
-      <h4>{preview ? "资料预览（尚未生成模型回答）" : "回答依据"}</h4>
+      <h4>{preview ? "相关资料" : "回答依据"}</h4>
       {items.map((item) => (
         <details key={item.number}>
           <summary>
             [{item.number}] {item.title}{" "}
-            <span className="muted">
-              {item.license} · {item.review_status}
-            </span>
           </summary>
           <p>{item.text}</p>
           {/^https?:\/\//.test(item.url) ? (
@@ -167,24 +191,24 @@ function ResultView({ result }: { result: Result }) {
       {result.reason && <p className="notice">{human(result.reason)}</p>}
       {result.message && <p>{result.message}</p>}
       {result.answer && <p className="answer">{result.answer}</p>}
-      {result.review_notice && <p className="notice">{result.review_notice}</p>}
+      {result.asset_id && <GeneratedAudio assetId={result.asset_id} />}
       {result.total && (
         <>
           <div className="score">
             {result.total.available ? result.total.value?.toFixed(1) : "—"}
-            <small>练习参考分 · {result.quality}</small>
+            <small>练习评分 · {result.quality === "usable" ? "录音清晰" : "录音质量有限"}</small>
           </div>
           {!result.total.available && (
-            <p className="muted">{result.total.reason}</p>
+            <p className="muted">{human(result.total.reason)}</p>
           )}
           <div className="metrics">
             {Object.entries(result.dimensions ?? {}).map(([key, metric]) => (
               <div key={key}>
-                <small>{key}</small>
+                <small>{({pitch: "音准", rhythm: "节奏", stability: "稳定性", coverage: "音高覆盖"} as Record<string, string>)[key] || "测量维度"}</small>
                 <strong>
                   {metric.available ? metric.value?.toFixed(1) : "—"}
                 </strong>
-                <small>{metric.unit ?? metric.reason}</small>
+                <small>{metric.unit ?? human(metric.reason)}</small>
               </div>
             ))}
           </div>
@@ -193,13 +217,8 @@ function ResultView({ result }: { result: Result }) {
               ? `${(result.duration_ms / 1000).toFixed(1)} 秒 · `
               : ""}
             跟踪覆盖 {((result.tracking_coverage ?? 0) * 100).toFixed(1)}% ·{" "}
-            {result.algorithm_version} / {result.ruleset_version}
           </p>
-          {result.limitations?.map((item) => (
-            <p className="notice" key={item}>
-              {item}
-            </p>
-          ))}
+          {!!result.pitch_contour?.length && <PitchChart points={result.pitch_contour} reference={result.reference_contour} />}
           {!!result.segments?.length && (
             <details>
               <summary>分段测量（前100段）</summary>
@@ -236,6 +255,17 @@ function ResultView({ result }: { result: Result }) {
       )}
     </div>
   );
+}
+
+function GeneratedAudio({assetId}: {assetId: string}) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+  return <div><button className="secondary" onClick={() => {
+    void request<{url: string}>(sessionStorage.getItem("dv.identity") || "local|learner",
+      `/v1/uploads/${assetId}/playback`).then(r => {setUrl(r.url); setError("");})
+      .catch(e => setError(e.message));
+  }}>播放生成歌声</button>{url && <><audio controls src={url} /><a href={url} download>下载音频</a></>}
+    {error && <p role="alert">{error}</p>}</div>;
 }
 
 function App() {
@@ -278,10 +308,34 @@ function App() {
   const [capabilities, setCapabilities] = useState<
     Record<string, { status: string; reason?: string }>
   >({});
+  const [conversation, setConversation] = useState<{id: string; revision: number} | null>(null);
+  const [turns, setTurns] = useState<{user_text: string; response: {message?: string; job?: Job}}[]>([]);
+  const [devSettings, setDevSettings] = useState(false);
   const epoch = useRef(0);
   const submitKey = useRef<{ signature: string; key: string } | null>(null);
   const feedbackKey = useRef<{ signature: string; key: string } | null>(null);
   const active = agents.find((agent) => agent.id === selected)!;
+
+  useEffect(() => {
+    if (!upload || upload.status !== "verifying") return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      try {
+        const asset = await request<{status: string}>(identity, `/v1/uploads/${upload.id}`, {signal: controller.signal});
+        if (controller.signal.aborted) return;
+        if (asset.status === "verifying") timer = setTimeout(check, 1500);
+        else {
+          setUpload({...upload, status: asset.status});
+          setNotice(asset.status === "ready" ? "录音准备完成，可以开始分析。" : "录音检查未通过，请重新上传清晰的音频。");
+        }
+      } catch {
+        if (!controller.signal.aborted) timer = setTimeout(check, 4000);
+      }
+    };
+    void check();
+    return () => {controller.abort(); clearTimeout(timer);};
+  }, [upload?.id, upload?.status, identity]);
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
@@ -315,6 +369,8 @@ function App() {
     setNotice("");
     setReportId("");
     setQuestion("");
+    setConversation(null);
+    setTurns([]);
     submitKey.current = null;
     feedbackKey.current = null;
     void refresh(controller.signal).catch((error) => {
@@ -418,17 +474,31 @@ function App() {
     const signature = JSON.stringify(body);
     if (submitKey.current?.signature !== signature)
       submitKey.current = { signature, key: crypto.randomUUID() };
+    let thread = conversation;
+    if (automatic && intelligent && !thread) {
+      thread = await request<{id: string; revision: number}>(identity, "/v1/conversations", {
+        method: "POST", body: JSON.stringify({title: text.slice(0, 60)})});
+      setConversation(thread);
+    }
     const response = await request<{
       status: string;
       message?: string;
       job?: Job;
       agent?: Agent;
-    }>(identity, "/v1/assistant", {
+      revision?: number;
+    }>(identity, automatic && intelligent && thread ? `/v1/conversations/${thread.id}/messages` : "/v1/assistant", {
       method: "POST",
-      body: JSON.stringify({ ...body, idempotency_key: submitKey.current.key }),
+      body: JSON.stringify(automatic && intelligent && thread
+        ? {text, revision: thread.revision, input_asset_id: upload?.id, idempotency_key: submitKey.current.key}
+        : { ...body, idempotency_key: submitKey.current.key }),
     });
     if (scope !== epoch.current) return;
     submitKey.current = null;
+    if (thread && response.revision !== undefined) {
+      setConversation({...thread, revision: response.revision});
+      setTurns(previous => [...previous, {user_text: text, response}]);
+      setQuestion("");
+    }
     if (response.job) {
       setCurrent(response.job);
       if (!intelligent) setSelected(response.agent!);
@@ -484,10 +554,9 @@ function App() {
     if (!response.ok)
       throw new Error(`对象上传失败 ${response.status}，请重新申请上传`);
     if (scope !== epoch.current) return;
-    setUpload({ id: result.asset_id, filename: file.name, status: "pending" });
-    setNotice(
-      "文件已传至私有对象存储。按当前上传范围，资产仍待校验，暂不能提交测评。",
-    );
+    await request(identity, `/v1/uploads/${result.asset_id}/complete`, {method: "POST"});
+    setUpload({ id: result.asset_id, filename: file.name, status: "verifying" });
+    setNotice("录音已上传，正在检查，请稍候。 ");
   }
 
   async function savePlan() {
@@ -610,12 +679,15 @@ function App() {
           </div>
           <p className="hero-caption">
             <span className={connected ? "dot" : "dot offline"} />
-            {connected ? "本地服务已连接" : "等待本地服务连接"} ·
-            研究资料与工程练习参考
+            {connected ? "已连接" : "正在连接服务"}
           </p>
         </div>
       </section>
-      <div className="identity-bar">
+      {authConfig.mode === "oidc" ? <div className="account-actions">
+        <button className="secondary" onClick={() => void login()}>登录</button>
+        <button className="text-button" onClick={() => void logout()}>退出登录</button>
+      </div> : <details className="developer-settings" open={devSettings} onToggle={e => setDevSettings(e.currentTarget.open)}>
+      <summary>开发设置</summary><div className="identity-bar">
         <label>
           本地测试身份{" "}
           <input
@@ -635,9 +707,28 @@ function App() {
         >
           切换身份
         </button>
-        <small>仅供本机测试，切换后展示该身份的数据。</small>
-      </div>
+      </div></details>}
       <section id="workbench" className={`workspace ${intelligent ? "assistant-workspace" : ""}`}>
+        {intelligent && <div className="conversation-panel">
+          <div className="actions"><button className="secondary" disabled={busy}
+            onClick={() => {setConversation(null); setTurns([]); setCurrent(null); setUpload(null);}}>新对话</button>
+            <button className="text-button" disabled={busy} onClick={() => void perform(async () => {
+              const history = await request<{id: string; title: string; revision: number}[]>(identity, "/v1/conversations");
+              if (!history.length) {setNotice("暂无历史对话。"); return;}
+              const latest = await request<{id: string; revision: number; turns: typeof turns}>(identity, `/v1/conversations/${history[0].id}`);
+              setConversation({id: latest.id, revision: latest.revision}); setTurns(latest.turns);
+            })}>继续上次对话</button>
+            {conversation && <button className="text-button" disabled={busy} onClick={() => void perform(async () => {
+              await request(identity, `/v1/conversations/${conversation.id}`, {method: "DELETE"});
+              setConversation(null); setTurns([]);
+            })}>删除当前对话</button>}
+          </div>
+          <div aria-live="polite">{turns.map((turn, i) => <div className="conversation-turn" key={i}>
+            <p><strong>我</strong> · {turn.user_text}</p>
+            {turn.response.message && <p>{turn.response.message}</p>}
+            {turn.response.job && <button className="text-button" onClick={() => setCurrent(turn.response.job!)}>查看处理结果</button>}
+          </div>)}</div>
+        </div>}
         <div className="workspace-chrome">
           <div className="mode-switch" role="group" aria-label="工作模式">
             {([['assistant', '智能助手'], ['expert', '专业工作台']] as const).map(([value, label]) => (
@@ -726,9 +817,9 @@ function App() {
                         event.target.value = "";
                       }} />
                   </label>
-                  {upload && <p className="muted">{upload.filename} · 待校验（{upload.status}）
+                  {upload && <p className="muted">{upload.filename} · {upload.status === "ready" ? "准备完成" : upload.status === "verifying" ? "正在检查" : "请重新上传"}
                     <button className="text-button" disabled={busy} onClick={() => setUpload(null)}>移除附件</button></p>}
-                  <small className="muted">附件仅用于录音分析；当前可上传，完成校验开放后才能测评。</small>
+                  <small className="muted">支持清唱录音，检查完成后即可分析。</small>
                 </div>
                 <div className="actions"><button disabled={busy || !question.trim()} onClick={() => void perform(() => submit(true))}>{busy ? "提交中…" : "发送"}</button></div>
                 <p className="muted">练习计划可注明目标、每天分钟数与天数；未注明时采用基础练习、每天10分钟、共3天的模板。需要精确设置时可切换专业工作台。</p>
@@ -736,7 +827,7 @@ function App() {
             </>}
             {!intelligent && selected === "knowledge" && (
               <p className="intro">
-                提出声乐概念或练习问题。回答须有中文资料支撑；未配置模型时，可查看检索资料预览。
+                提出声乐概念或练习问题，结合相关资料理解发声与练习方法。
               </p>
             )}
             {!intelligent && selected === "assessment" && (
@@ -747,7 +838,7 @@ function App() {
                 <div className="upload-box">
                   <UploadCloud size={32} />
                   <strong>选择一段清唱录音</strong>
-                  <small>音频最大 100 MiB · 当前仅完成文件上传</small>
+                  <small>音频最大 100 MiB · 上传后自动检查</small>
                   <input
                     aria-label="选择清唱录音"
                     type="file"
@@ -762,16 +853,11 @@ function App() {
                 </div>
                 {upload && (
                   <p className="notice">
-                    {upload.filename} · 待校验（{upload.status}）<br />
-                    <small>资产 {upload.id}</small>
+                    {upload.filename} · {upload.status === "ready" ? "可以开始分析" : upload.status === "verifying" ? "正在检查" : "请重新上传"}
                   </p>
                 )}
-                <p className="notice">
-                  当前采用仅预签名上传流程，尚未开放上传完成校验。录音不会自动变为可测评状态。
-                </p>
-                <button disabled title="需完成上传校验后开放">
-                  提交录音测评 · 待开放
-                </button>
+                <Studio identity={identity} assetId={upload?.status === "ready" ? upload.id : null}
+                  kind="assessment" onJob={async job => {setCurrent(job as Job); await refresh();}} />
                 {!!reports.length && (
                   <>
                     <h3>我的测评报告</h3>
@@ -800,7 +886,7 @@ function App() {
             {!intelligent && selected === "planning" && (
               <>
                 <p className="intro">
-                  选择练习目标与可用时间，生成含休息的可编辑模板。提供真实反馈，逐步积累练习记录。
+                选择练习目标与可用时间，结合测评报告和练习反馈，调整适合自己的练习安排。
                 </p>
                 <div className="form-grid">
                   <label>
@@ -870,11 +956,10 @@ function App() {
             {!intelligent && selected === "singing" && (
               <div className="feature-note">
                 <Music2 size={38} />
-                <h3>歌声生成 · 接口预留</h3>
-                <p>
-                  待接入已授权的外部服务后，支持个性化参考歌声。当前不会生成音频、提交付费生成任务或保存虚构结果。
-                </p>
-                <small>{capabilities.singing?.reason}</small>
+                <h3>个性化歌声</h3>
+                <p>使用自己的声音参考和原创歌词，创作一段演唱。</p>
+                <Studio identity={identity} assetId={upload?.status === "ready" ? upload.id : null}
+                  kind="singing" onUpload={uploadFile} onJob={async job => {setCurrent(job as Job); await refresh();}} />
               </div>
             )}
             {!intelligent && selected !== "assessment" && (
@@ -1001,6 +1086,12 @@ function App() {
                       </button>
                     </div>
                     <p className="notice">{edit.payload.notice}</p>
+                    <button className="secondary" disabled={busy} onClick={() => void perform(async () => {
+                      const result = await request<Plan & {status?: string; message?: string}>(identity,
+                        `/v1/plans/${edit.id}/adapt`, {method: "POST"});
+                      if (result.status === "refused") {setNotice(result.message || "请先休息，恢复后再练习。"); return;}
+                      setEdit(result); await refresh(); setNotice("已根据本版练习反馈调整计划。");
+                    })}>根据反馈调整计划</button>
                     <label>
                       目标
                       <select
@@ -1216,12 +1307,12 @@ function App() {
           .map((job) => `${job.id}:${job.status}:${job.attempt}`)
           .join(",")}
       />
+      <Progress identity={identity} revision={practice.length + reports.length} />
       <Governance key={identity} identity={identity} completedJobs={jobs} /></>}
-      <footer>
-        DeepVocal · 本地研究工作台 · 资料与工程参考分均保留可用条件
-      </footer>
+      <footer>DeepVocal · 让每一次练习都有方向</footer>
     </main>
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+initializeAuth().then(() => createRoot(document.getElementById("root")!).render(<App />))
+  .catch(() => { document.getElementById("root")!.textContent = "暂时无法连接服务，请稍后刷新。"; });

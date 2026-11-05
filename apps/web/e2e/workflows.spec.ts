@@ -37,8 +37,8 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await page.goto("/");
   await page.getByRole("button", { name: "专业工作台", exact: true }).click();
   await expect(
-    page.getByText("本地服务已连接", { exact: false }),
-  ).toBeVisible();
+    page.getByText("已连接", { exact: false }),
+  ).toBeVisible({timeout: 30000});
   const diagnostic = page.locator(".operations");
   await expect(
     diagnostic.getByRole("heading", { name: "任务运行诊断" }),
@@ -73,14 +73,14 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await expect(
     page
       .locator(".current-job")
-      .getByText(corpusAvailable ? "模型 API Key 尚未配置" : "尚未准备可用的本地知识资料", { exact: false }),
+      .getByText(corpusAvailable ? "问答暂不可用" : "尚未准备可用的本地知识资料", { exact: false }),
   ).toBeVisible({ timeout: 30000 });
-  if (corpusAvailable) await expect(page.getByText("资料预览（尚未生成模型回答）")).toBeVisible();
+  if (corpusAvailable) await expect(page.getByRole("heading", {name: "相关资料", exact: true})).toBeVisible();
   await page
-    .getByText("模型用量与费用 · 付费调用未启用", { exact: true })
+    .getByText("账户用量 · 暂无用量", { exact: true })
     .click();
   await expect(
-    page.getByText("本身份尚无模型调用费用记录。", { exact: true }),
+    page.getByText("暂无使用记录。", { exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "练习规划 目标约束 · 练习反馈" })
@@ -132,7 +132,7 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   ).toBeVisible();
   await page.getByRole("button", { name: "退役", exact: true }).click();
   await page
-    .getByRole("button", { name: "录音诊断与全曲测评 工程测量 · 分段报告" })
+    .getByRole("button", { name: "录音诊断与全曲测评 音高节奏 · 分段报告" })
     .click();
   await page.getByLabel("选择清唱录音").setInputFiles({
     name: "synthetic-test.wav",
@@ -140,15 +140,16 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
     buffer: wav(),
   });
   await expect(
-    page.getByText("synthetic-test.wav · 待校验（pending）", { exact: false }),
+    page.getByText("synthetic-test.wav · 可以开始分析", { exact: false }),
   ).toBeVisible({ timeout: 30000 });
   await expect(
-    page.getByRole("button", { name: "提交录音测评 · 待开放" }),
-  ).toBeDisabled();
+    page.getByRole("button", { name: "开始测评", exact: true }),
+  ).toBeEnabled();
   await page.screenshot({
     path: `../../_qa/frontend-${testInfo.project.name}-upload.png`,
     fullPage: true,
   });
+  await page.getByText("开发设置", {exact: true}).click();
   await page.getByLabel("本地测试身份").fill(`e2e|${crypto.randomUUID()}`);
   await page.getByRole("button", { name: "切换身份", exact: true }).click();
   await expect(
@@ -171,7 +172,7 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   const requests: Record<string, unknown>[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", req => {
-    if (req.url().endsWith("/v1/assistant") && req.method() === "POST") requests.push(req.postDataJSON());
+    if (req.url().includes("/messages") && req.method() === "POST") requests.push(req.postDataJSON());
   });
   await page.addInitScript((identity) => sessionStorage.setItem("dv.identity", identity), `e2e|${crypto.randomUUID()}`);
   await page.goto("/");
@@ -187,7 +188,7 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   await question.fill("什么是音准？");
   await send.click();
-  await expect(page.locator(".current-job").getByText(corpusAvailable ? "模型 API Key 尚未配置" : "尚未准备可用的本地知识资料", { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.locator(".current-job").getByText(corpusAvailable ? "问答暂不可用" : "尚未准备可用的本地知识资料", { exact: false })).toBeVisible({ timeout: 30000 });
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await question.fill("帮我制定音准练习计划，每天15分钟，共5天");
   await send.click();
@@ -200,20 +201,21 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.getByRole("status")).toContainText("5–30 分钟");
   await question.fill("请分析我的录音");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("请先附上");
+  await expect(page.getByRole("status")).toContainText("请附上");
   await page.getByLabel("附上清唱录音", { exact: true }).setInputFiles({ name: "beginner-synthetic.wav", mimeType: "audio/wav", buffer: wav() });
-  await expect(page.getByText("beginner-synthetic.wav · 待校验（pending）", { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText("beginner-synthetic.wav · 准备完成", { exact: false })).toBeVisible({ timeout: 30000 });
+  await question.fill("请分析我的录音并制定练习计划");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("本次不会创建测评任务");
+  await expect(page.locator(".current-job").getByText("计划已保存，可在下方「我的计划」中查看、编辑并记录反馈。")).toBeVisible({timeout: 30000});
   await page.getByRole("button", { name: "移除附件", exact: true }).click();
   await question.fill("帮我生成个性化歌声");
   await send.click();
-  await expect(page.locator(".current-job").getByText("歌声生成接口已预留，外部服务尚未配置。", { exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole("status")).toContainText("在歌声生成工作台上传本人声音");
   expect(requests.length).toBeGreaterThan(5);
   for (const body of requests) {
     expect(body).not.toHaveProperty("action");
     expect(body).not.toHaveProperty("kind");
-    expect(body.input).toEqual({});
+    expect(body).not.toHaveProperty("input");
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
   await page.screenshot({ path: `../../_qa/assistant-${testInfo.project.name}.png`, fullPage: true });
@@ -225,6 +227,7 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.locator(".job-list .history-item")).toHaveCount(count);
   await page.getByRole("button", { name: "智能助手", exact: true }).click();
   await expect(page.locator(".sidebar")).toHaveCount(0);
+  await page.getByText("开发设置", {exact: true}).click();
   await page.getByLabel("本地测试身份").fill(`e2e|${crypto.randomUUID()}`);
   await page.getByRole("button", { name: "切换身份", exact: true }).click();
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);

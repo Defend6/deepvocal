@@ -13,11 +13,20 @@ class Settings(BaseSettings):
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     singing_enabled: bool = False
+    singing_service_url: str = ""
+    singing_service_token: str = ""
     model_provider: str = "disabled"
     auth_mode: str = "local"
     oidc_issuer: str = ""
     oidc_audience: str = ""
     oidc_jwks_url: str = ""
+    oidc_client_id: str = "deepvocal-web"
+    request_limit_per_minute: int = 120
+    jobs_daily_limit: int = 100
+    jobs_concurrent_limit: int = 5
+    operator_role: str = "deepvocal-admin"
+    metrics_token: str = ""
+    upload_completion_enabled: bool = True
     auth_clock_skew_seconds: int = 30
     max_audio_size_bytes: int = 104857600
     upload_expiry_seconds: int = 3600
@@ -56,14 +65,29 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth_configuration(self) -> "Settings":
-        if self.auth_mode != "local":
-            raise ValueError("only local test identity is implemented")
-        if self.deepvocal_mode.lower() not in {
+        if self.auth_mode not in {"local", "oidc"}:
+            raise ValueError("auth_mode must be local or oidc")
+        if self.auth_mode == "local" and self.deepvocal_mode.lower() not in {
             "mock",
             "development",
             "test",
         }:
             raise ValueError("local authentication is only allowed in mock/development/test mode")
+        if self.auth_mode == "oidc":
+            from urllib.parse import urlsplit
+
+            if not self.oidc_audience or not self.oidc_client_id:
+                raise ValueError("OIDC audience and client id required")
+            for value in (self.oidc_issuer, self.oidc_jwks_url):
+                url = urlsplit(value)
+                if url.scheme not in {"http", "https"} or not url.hostname or url.username:
+                    raise ValueError("OIDC issuer and JWKS URLs required")
+                if self.deepvocal_mode == "production" and url.scheme != "https":
+                    raise ValueError("production OIDC URLs must use HTTPS")
+        if not 10 <= self.request_limit_per_minute <= 10000:
+            raise ValueError("invalid request rate limit")
+        if not 1 <= self.jobs_daily_limit <= 100000 or not 1 <= self.jobs_concurrent_limit <= 100:
+            raise ValueError("invalid job quota")
         if not 60 <= self.upload_expiry_seconds <= 86400:
             raise ValueError("upload expiry must be between 60 and 86400 seconds")
         if not 0 <= self.model_monthly_limit_minor <= 100000000:
