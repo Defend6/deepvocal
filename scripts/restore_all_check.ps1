@@ -58,7 +58,7 @@ $graph=$restored | Where-Object { $_.source -eq 'deepvocal_neo4j_data' }
 if ($graph) {
   $container='deepvocal-restorecheck-graph-'+$suffix
   if (-not $privateEnv.NEO4J_PASSWORD) { throw 'Local Neo4j credentials are required for a real restore query' }
-  docker run -d --name $container --network none --env "NEO4J_AUTH=neo4j/$($privateEnv.NEO4J_PASSWORD)" --env NEO4J_server_memory_heap_initial__size=512m --env NEO4J_server_memory_heap_max__size=1G --mount "type=volume,source=$($graph.restored),target=/data" neo4j:5-community | Out-Null; Assert-Exit
+  docker run -d --name $container --hostname localhost --network none --env "NEO4J_AUTH=neo4j/$($privateEnv.NEO4J_PASSWORD)" --env NEO4J_server_memory_heap_initial__size=512m --env NEO4J_server_memory_heap_max__size=1G --mount "type=volume,source=$($graph.restored),target=/data" neo4j:5-community | Out-Null; Assert-Exit
   try {
     $ready=$false
     for($attempt=0;$attempt -lt 120;$attempt++) {
