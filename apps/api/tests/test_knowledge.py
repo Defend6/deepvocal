@@ -32,7 +32,7 @@ def test_license_language_hash_and_production_gates(tmp_path):
     row = bundle["chunks"][0]
     assert permitted(row, "research")
     assert not permitted(row, "production")
-    assert not permitted({**row, "language": "en"}, "research")
+    assert permitted({**row, "language": "en"}, "research")
     assert not permitted({**row, "license": "CC-BY-NC-4.0"}, "research")
     assert not permitted({**row, "text": "tampered"}, "research")
     bundle["chunks"][0]["text"] = "modified without review"

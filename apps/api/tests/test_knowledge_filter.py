@@ -64,3 +64,58 @@ def test_prepare_imports_filtered_research_candidates_but_not_production(tmp_pat
     audit = prepare(root, destination)
     assert audit["selected_chunks"] == 1
     assert load_bundle(destination, "research")["chunks"][0]["id"] == "zhwiki-1-1"
+
+
+def test_prepare_imports_permitted_english_normalized_chunks(tmp_path):
+    root = tmp_path / "corpus"
+    (root / "project-original").mkdir(parents=True)
+    (root / "normalized").mkdir()
+    (root / "project-original" / "knowledge.json").write_text("[]", encoding="utf-8")
+    (root / "source-registry.json").write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "source_id": "public-en",
+                        "license": "CC0-1.0",
+                        "license_evidence": "LICENSE.txt",
+                        "url": "https://example.test/public-en",
+                        "review_status": "NEEDS_REVIEW",
+                        "production_enabled": False,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "normalized" / "documents.jsonl").write_text(
+        json.dumps(
+            {
+                "document_id": "doc-en",
+                "source_id": "public-en",
+                "source_locator": "voice.md",
+                "title": "Vocal resonance",
+                "language": "en",
+                "categories": ["VocalConcept"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    text = "Vocal resonance describes how the vocal tract shapes the sound." * 4
+    (root / "normalized" / "chunks.jsonl").write_text(
+        json.dumps(
+            {
+                "chunk_id": "chunk-en",
+                "document_id": "doc-en",
+                "source_id": "public-en",
+                "language": "en",
+                "text": text,
+            }
+        ),
+        encoding="utf-8",
+    )
+    destination = tmp_path / "bundle.json"
+    audit = prepare(root, destination)
+    assert audit["selected_chunks"] == 1
+    bundle = load_bundle(destination, "research")
+    assert bundle["chunks"][0]["language"] == "en"
