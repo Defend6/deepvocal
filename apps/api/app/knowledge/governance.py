@@ -79,6 +79,12 @@ def prepare(
         }
         if permitted(row, mode):
             rows.append(row)
+    filtered_path = root / "working" / "zh-filtered-candidates.json"
+    if filtered_path.is_file():
+        filtered = json.loads(filtered_path.read_text(encoding="utf-8"))
+        for row in filtered.get("candidates", []):
+            if permitted(row, mode) and row["id"] not in {item["id"] for item in rows}:
+                rows.append(row)
     # Existing collected sources remain separate; their expert/rights status is never fabricated.
     for source in registry["sources"]:
         license_name = source.get("license", "UNKNOWN")
