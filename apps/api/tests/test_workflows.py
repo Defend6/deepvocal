@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import io
+import json
 import os
 from datetime import UTC
 from uuid import UUID, uuid4
@@ -19,7 +20,13 @@ from test_jobs import database_case
 
 from app.auth import authenticate
 from app.config import Settings
-from app.conversations import ConversationCreate, TurnCreate, create_conversation, post_turn
+from app.conversations import (
+    ConversationCreate,
+    TurnCreate,
+    create_conversation,
+    get_conversation,
+    post_turn,
+)
 from app.planning import PlanningInput, create_plan
 from app.songs import midi_notes
 
@@ -311,6 +318,68 @@ def test_conversation_clarification_idempotency_foreign_owner_and_revision(monke
                     )
                     == 1
                 )
+
+    asyncio.run(run())
+
+
+@pytest.mark.skipif(not os.getenv("TEST_DATABASE_URL"), reason="requires PostgreSQL")
+def test_conversation_reads_current_job_and_redacts_foreign_or_missing_snapshots(monkeypatch):
+    async def run():
+        from app import database
+
+        async with database_case() as (sessions, owner), database_case() as (_, other):
+            monkeypatch.setattr(database, "_sessions", sessions)
+            async with sessions() as session:
+                thread = await create_conversation(ConversationCreate(), {"id": owner}, session)
+            identifier = UUID(thread["id"])
+            request = TurnCreate(
+                text="制定练习计划，每天10分钟，共3天", revision=0, idempotency_key=str(uuid4())
+            )
+            async with sessions() as session:
+                original = await post_turn(identifier, request, {"id": owner}, session)
+            job_id = original["job"]["id"]
+            result = {"status": "planned", "message": "synthetic final result"}
+            async with sessions() as session:
+                await session.execute(
+                    text(
+                        "UPDATE jobs SET status='SUCCEEDED',result=CAST(:result AS jsonb) WHERE id=:id"
+                    ),
+                    {"id": job_id, "result": json.dumps(result)},
+                )
+                await session.commit()
+            async with sessions() as session:
+                restored = await get_conversation(identifier, {"id": owner}, session)
+                turn = restored["turns"][0]
+                assert turn["id"] and turn["created_at"]
+                assert turn["response"]["job"]["status"] == "SUCCEEDED"
+                assert turn["response"]["job"]["result"] == result
+                # A replay still returns the exact original response, not a mutated snapshot.
+                assert await post_turn(identifier, request, {"id": owner}, session) == original
+            async with sessions() as session:
+                with pytest.raises(HTTPException) as exc:
+                    await get_conversation(identifier, {"id": other}, session)
+                assert exc.value.status_code == 404
+            for foreign_or_missing in (job_id, str(uuid4())):
+                async with sessions() as session:
+                    if foreign_or_missing == job_id:
+                        await session.execute(
+                            text("UPDATE jobs SET owner_id=:other WHERE id=:id"),
+                            {"id": job_id, "other": other},
+                        )
+                    snapshot = {
+                        "job": {"id": foreign_or_missing, "result": {"answer": "must not leak"}}
+                    }
+                    await session.execute(
+                        text(
+                            "UPDATE conversation_turns SET response=CAST(:response AS jsonb) WHERE conversation_id=:id"
+                        ),
+                        {"id": thread["id"], "response": json.dumps(snapshot)},
+                    )
+                    await session.commit()
+                async with sessions() as session:
+                    restored = await get_conversation(identifier, {"id": owner}, session)
+                    assert "job" not in restored["turns"][0]["response"]
+                    assert "已不可用" in restored["turns"][0]["response"]["message"]
 
     asyncio.run(run())
 

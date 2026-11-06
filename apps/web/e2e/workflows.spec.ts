@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 const corpusAvailable = process.env.E2E_CORPUS_AVAILABLE !== "0";
+const knowledgeLive = process.env.E2E_KNOWLEDGE_LIVE === "1";
+const knowledgeOutcome = knowledgeLive ? /已回答|资料依据不足/
+  : corpusAvailable ? /问答暂不可用/ : /尚未准备可用的本地知识资料/;
 
 function wav(): Buffer {
   const output = Buffer.alloc(44 + 32000);
@@ -73,9 +76,9 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
   await expect(
     page
       .locator(".current-job")
-      .getByText(corpusAvailable ? "问答暂不可用" : "尚未准备可用的本地知识资料", { exact: false }),
-  ).toBeVisible({ timeout: 30000 });
-  if (corpusAvailable) await expect(page.getByRole("heading", {name: "相关资料", exact: true})).toBeVisible();
+      .getByText(knowledgeOutcome).first(),
+  ).toBeVisible({ timeout: knowledgeLive ? 120000 : 30000 });
+  if (corpusAvailable && !knowledgeLive) await expect(page.getByRole("heading", {name: "相关资料", exact: true})).toBeVisible();
   await page
     .getByText("账户用量 · 暂无用量", { exact: true })
     .click();
@@ -184,11 +187,12 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   const send = page.getByRole("button", { name: "发送", exact: true });
   await question.fill("你好");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("请补充希望解决的具体问题");
+  const feed = page.getByRole("log", {name: "对话消息"});
+  await expect(feed).toContainText("请补充希望解决的具体问题");
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   await question.fill("什么是音准？");
   await send.click();
-  await expect(page.locator(".current-job").getByText(corpusAvailable ? "问答暂不可用" : "尚未准备可用的本地知识资料", { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(feed.getByText(knowledgeOutcome).first()).toBeVisible({ timeout: knowledgeLive ? 120000 : 30000 });
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await question.fill("帮我制定音准练习计划，每天15分钟，共5天");
   await send.click();
@@ -198,19 +202,21 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.getByText("编辑计划 · v1", { exact: true })).toBeVisible();
   await question.fill("帮我制定每天60分钟的练习计划");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("5–30 分钟");
+  await expect(feed).toContainText("5–30 分钟");
   await question.fill("请分析我的录音");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("请附上");
+  await expect(feed).toContainText("请附上");
+  await page.getByRole("button", {name: "添加录音", exact: true}).click();
   await page.getByLabel("附上清唱录音", { exact: true }).setInputFiles({ name: "beginner-synthetic.wav", mimeType: "audio/wav", buffer: wav() });
   await expect(page.getByText("beginner-synthetic.wav · 准备完成", { exact: false })).toBeVisible({ timeout: 30000 });
   await question.fill("请分析我的录音并制定练习计划");
   await send.click();
-  await expect(page.locator(".current-job").getByText("计划已保存，可在下方「我的计划」中查看、编辑并记录反馈。")).toBeVisible({timeout: 30000});
+  await expect(feed.locator(".inline-plan")).toHaveCount(2, {timeout: 30000});
+  await expect(feed.locator(".inline-plan").last()).toContainText("分钟");
   await page.getByRole("button", { name: "移除附件", exact: true }).click();
   await question.fill("帮我生成个性化歌声");
   await send.click();
-  await expect(page.getByRole("status")).toContainText("在歌声生成工作台上传本人声音");
+  await expect(feed).toContainText("在歌声生成工作台上传本人声音");
   expect(requests.length).toBeGreaterThan(5);
   for (const body of requests) {
     expect(body).not.toHaveProperty("action");

@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.assistant import AssistantRequest, dispatch
 from app.identity import Session, User
+from app.jobs import public_job
 
 router = APIRouter(prefix="/v1/conversations", tags=["conversations"])
 
@@ -73,20 +74,45 @@ async def list_conversations(user: User, session: Session):
 @router.get("/{conversation_id}")
 async def get_conversation(conversation_id: UUID, user: User, session: Session):
     conversation = await owned_conversation(session, user["id"], conversation_id)
-    turns = (
-        await session.execute(
-            text("""SELECT user_text,response,created_at FROM
+    turns = list(
+        (
+            await session.execute(
+                text("""SELECT id,user_text,response,created_at FROM
       (SELECT * FROM conversation_turns WHERE conversation_id=:id AND owner_id=:owner
        ORDER BY created_at DESC,id DESC LIMIT 30) t ORDER BY created_at,id"""),
-            {"id": str(conversation_id), "owner": user["id"]},
-        )
-    ).mappings()
+                {"id": str(conversation_id), "owner": user["id"]},
+            )
+        ).mappings()
+    )
+    # Stored responses preserve idempotency; render current jobs instead of queued snapshots.
+    job_ids = [str(t["response"]["job"]["id"]) for t in turns if t["response"].get("job")]
+    live_jobs = {}
+    if job_ids:
+        rows = (
+            await session.execute(
+                text("SELECT * FROM jobs WHERE owner_id=:owner AND CAST(id AS text) = ANY(:ids)"),
+                {"owner": user["id"], "ids": job_ids},
+            )
+        ).mappings()
+        live_jobs = {str(row["id"]): public_job(row) for row in rows}
+    messages = []
+    for turn in turns:
+        response = dict(turn["response"])
+        if response.get("job"):
+            current_job = live_jobs.get(str(response["job"]["id"]))
+            if current_job:
+                response["job"] = current_job
+            else:
+                # Never show an orphan or foreign-owner result from a stored snapshot.
+                response.pop("job")
+                response["message"] = "此条消息的处理记录已不可用，你可以重新发送。"
+        messages.append({**dict(turn), "response": response})
     return jsonable_encoder(
         {
             "id": str(conversation_id),
             "title": conversation["title"],
             "revision": conversation["revision"],
-            "turns": [dict(t) for t in turns],
+            "turns": messages,
         }
     )
 

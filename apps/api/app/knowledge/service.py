@@ -136,7 +136,17 @@ class KnowledgeService:
                 return {"status": "refused", "reason": "INSUFFICIENT_EVIDENCE", "citations": []}
             ranking = await self.provider.rerank(question, [row["text"] for row in candidates])
             if ranking[0][1] < 0.35:
-                return {"status": "refused", "reason": "LOW_RELEVANCE", "citations": []}
+                logger.info(
+                    "Knowledge answer withheld: low relevance; candidates=%d top_score=%.4f",
+                    len(candidates),
+                    ranking[0][1],
+                )
+                return {
+                    "status": "refused",
+                    "reason": "LOW_RELEVANCE",
+                    "message": "可以先聚焦一个声乐概念，或补充你想了解的具体区别后再问一次。",
+                    "citations": [],
+                }
             evidence = [candidates[index] for index, score in ranking if score >= 0.35][:5]
             answer = (
                 await self.provider.answer(question, evidence, skill)

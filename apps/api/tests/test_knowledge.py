@@ -57,9 +57,11 @@ def test_prepare_preserves_local_catalog_and_rejects_unversioned_alias_edits(tmp
     settings, _bundle = prepared(tmp_path)
     root = tmp_path / "synthetic-corpus"
     (root / "working").mkdir()
-    catalog = {"version": "synthetic", "entities": [
-        {"id": "intonation", "names": ["音准", "intonation"], "aliases": []}
-    ], "relations": []}
+    catalog = {
+        "version": "synthetic",
+        "entities": [{"id": "intonation", "names": ["音准", "intonation"], "aliases": []}],
+        "relations": [],
+    }
     (root / "working" / "entity-catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
     prepare(root, Path(settings.knowledge_bundle))
     bundle = load_bundle(settings.knowledge_bundle, "research")
@@ -70,7 +72,9 @@ def test_prepare_preserves_local_catalog_and_rejects_unversioned_alias_edits(tmp
         load_bundle(settings.knowledge_bundle, "research")
 
 
-def test_graph_rebuild_does_not_publish_manifest_when_database_verification_fails(tmp_path, monkeypatch):
+def test_graph_rebuild_does_not_publish_manifest_when_database_verification_fails(
+    tmp_path, monkeypatch
+):
     from app.knowledge import cli
 
     settings, _bundle = prepared(tmp_path)
@@ -207,6 +211,37 @@ def test_full_retrieval_citation_validation_with_test_provider(tmp_path):
     assert asyncio.run(service.answer("什么是音准"))["reason"] == "INVALID_GENERATED_CITATIONS"
 
 
+def test_low_relevance_explains_abstention_without_calling_generation(tmp_path):
+    settings, _bundle = prepared(tmp_path)
+    settings = settings.model_copy(update={"model_api_key": "test"})
+    Path(settings.knowledge_index_manifest).write_text("{}")
+
+    class Indexes:
+        def vector_search(self, *_args):
+            return ["pitch"]
+
+        def graph_search(self, *_args, **_kwargs):
+            return []
+
+    class Provider:
+        async def embed(self, _texts):
+            return [[0.1, 0.2]]
+
+        async def rerank(self, _query, _documents):
+            return [(0, 0.02)]
+
+        async def answer(self, *_args):
+            raise AssertionError("Insufficient evidence must never trigger generation")
+
+    result = asyncio.run(
+        KnowledgeService(settings, Provider(), Indexes()).answer("什么是胸声和头声")
+    )
+    assert result["status"] == "refused"
+    assert result["reason"] == "LOW_RELEVANCE"
+    assert result["message"] and result["citations"] == []
+    assert not result.get("answer")
+
+
 def test_real_neo4j_milvus_index_round_trip_with_synthetic_test_vectors(tmp_path):
     if os.getenv("TEST_KNOWLEDGE_INDEXES") != "1":
         pytest.skip("requires Neo4j and Milvus")
@@ -224,8 +259,13 @@ def test_real_neo4j_milvus_index_round_trip_with_synthetic_test_vectors(tmp_path
         assert bundle["chunks"][1]["id"] in indexes.graph_search(bundle, "音准")
         manifest = indexes.vector_load(bundle, [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]])
         Path(settings.knowledge_index_manifest).write_text(
-            json.dumps({**manifest, "index_identity": index_identity(bundle, settings),
-                        "graph_identity": graph_identity(bundle)})
+            json.dumps(
+                {
+                    **manifest,
+                    "index_identity": index_identity(bundle, settings),
+                    "graph_identity": graph_identity(bundle),
+                }
+            )
         )
         assert indexes.vector_search(bundle, [1.0, 0.0, 0.0, 0.0])[0] == "pitch"
         verification = indexes.verify(bundle)
@@ -246,7 +286,8 @@ def test_real_neo4j_milvus_index_round_trip_with_synthetic_test_vectors(tmp_path
             settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password)
         ) as driver:
             driver.execute_query(
-                "MATCH (c:DVKnowledgeChunk {fingerprint:$fp}) DETACH DELETE c", fp=bundle["fingerprint"]
+                "MATCH (c:DVKnowledgeChunk {fingerprint:$fp}) DETACH DELETE c",
+                fp=bundle["fingerprint"],
             )
         if manifest:
             client = MilvusClient(uri=settings.milvus_uri)

@@ -7,6 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:5173",
+    ...(process.env.E2E_BROWSER_CHANNEL ? {channel: process.env.E2E_BROWSER_CHANNEL} : {}),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
