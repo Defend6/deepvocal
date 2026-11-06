@@ -11,6 +11,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import get_settings
+from app.knowledge.benchmark_support import (
+    BenchmarkCache,
+    benchmark_cache_lock,
+    evidence_summary,
+    latency_summary,
+    validate_frozen_lock,
+    validate_suite,
+)
+from app.knowledge.entities import EntityLinker, catalog_for, graph_identity, protected_candidates
 from app.knowledge.governance import load_bundle, sha256
 from app.knowledge.indexes import KnowledgeIndexes, lexical_search, reciprocal_rank_fusion
 from app.knowledge.provider import ModelProvider
@@ -64,6 +73,8 @@ async def run_benchmark(
     candidate_limit: int = 12,
     use_indexes: bool = False,
     concurrency: int = 1,
+    cache_path: Path | None = None,
+    retrieval_only: bool = False,
 ) -> dict:
     if not settings.embedding_api_base or not settings.reranker_api_base:
         raise ValueError("configure both local embedding and reranker API bases")
@@ -75,43 +86,34 @@ async def run_benchmark(
         raise ValueError("invalid corpus, candidate limit or concurrency")
     row_ids = [row["id"] for row in rows]
     by_id = dict(zip(row_ids, rows, strict=True))
-    test_cases = cases.get("cases", [])
-    if not test_cases:
-        raise ValueError("benchmark has no cases")
-    case_ids, relevant = [], []
-    for case in test_cases:
-        labels = case.get("relevant_chunk_ids", [])
-        if (
-            not labels
-            or len(set(labels)) != len(labels)
-            or not set(labels) <= set(by_id)
-            or not isinstance(case.get("query"), str)
-            or not case["query"].strip()
-            or case.get("id") in case_ids
-            or not isinstance(case.get("id"), str)
-            or not case["id"].strip()
-            or any(
-                key not in by_id or by_id[key]["text_sha256"] != digest
-                for key, digest in case.get("source_text_sha256", {}).items()
-            )
-        ):
-            raise ValueError(f"invalid relevance labels for {case.get('id')}")
-        case_ids.append(case["id"])
-        relevant.append(labels)
+    test_cases, controls = validate_suite(cases, bundle)
+    case_ids = [case["id"] for case in test_cases]
+    relevant = [case["relevant_chunk_ids"] for case in test_cases]
 
     provider = ModelProvider(settings)
+    cache = BenchmarkCache(cache_path, {
+        "embedding_model": settings.embedding_model,
+        "embedding_revision": settings.embedding_model_revision,
+        "reranker_model": settings.reranker_model,
+        "reranker_revision": settings.reranker_model_revision,
+        "embedding_base": settings.embedding_api_base, "reranker_base": settings.reranker_api_base,
+    })
+
+    async def embed(texts):
+        return await cache.call("embedding", texts, lambda: provider.embed(texts))
+
     started = time.perf_counter()
     document_vectors = []
     for start in range(0, len(rows), 16):
         document_vectors.extend(
-            await provider.embed([row["text"] for row in rows[start : start + 16]])
+            await embed([row["text"] for row in rows[start : start + 16]])
         )
     document_embedding_seconds = time.perf_counter() - started
     started = time.perf_counter()
     query_vectors = []
     for start in range(0, len(test_cases), 16):
         query_vectors.extend(
-            await provider.embed([case["query"] for case in test_cases[start : start + 16]])
+            await embed([case["query"] for case in test_cases[start : start + 16]])
         )
     query_embedding_seconds = time.perf_counter() - started
 
@@ -128,7 +130,8 @@ async def run_benchmark(
     ]
     lexical_rankings = [lexical_search(bundle, case["query"]) for case in test_cases]
 
-    index_rankings, graph_rankings, hybrid_rankings = [], [], []
+    index_rankings, graph_rankings, hybrid_rankings, protected_rankings = [], [], [], []
+    alias_rankings = []
     index_seconds = []
     if use_indexes:
         indexes = KnowledgeIndexes(settings)
@@ -138,21 +141,39 @@ async def run_benchmark(
             started_at = time.perf_counter()
             vector_ids = await asyncio.to_thread(indexes.vector_search, bundle, query_vector)
             graph_ids = await asyncio.to_thread(indexes.graph_search, bundle, case["query"])
+            alias_ids = await asyncio.to_thread(
+                indexes.graph_search, bundle, case["query"], expansion=False
+            )
+            alias_rankings.append(alias_ids)
             index_seconds.append(time.perf_counter() - started_at)
             index_rankings.append(vector_ids)
             graph_rankings.append(graph_ids)
             hybrid_rankings.append(reciprocal_rank_fusion(lexical, vector_ids, graph_ids))
+            expanded = await asyncio.to_thread(
+                indexes.graph_search, bundle, case["query"], seed_ids=vector_ids[:2]
+            )
+            protected_rankings.append(
+                protected_candidates(vector_ids, lexical, expanded, candidate_limit)
+            )
     rerank_seconds = []
     semaphore = asyncio.Semaphore(concurrency)
+    completed = 0
 
     async def rerank_one(case, ranking):
+        nonlocal completed
         candidates = ranking[:candidate_limit]
         async with semaphore:
             started_at = time.perf_counter()
-            result = await provider.rerank(
-                case["query"], [by_id[key]["text"] for key in candidates]
+            texts = [by_id[key]["text"] for key in candidates]
+            result = await cache.rerank(
+                case["query"], texts,
+                lambda missing: provider.rerank(case["query"], missing),
             )
             elapsed = time.perf_counter() - started_at
+        completed += 1
+        if completed % 10 == 0:
+            print(json.dumps({"completed_rerank_requests": completed,
+                              "cache_hits": cache.hits}), flush=True)
         reranked = [candidates[index] for index, _score in result]
         reranked.extend(key for key in candidates if key not in set(reranked))
         return reranked + ranking[candidate_limit:], elapsed
@@ -162,30 +183,34 @@ async def run_benchmark(
             rerank_one(case, ranking)
             for case, ranking in zip(test_cases, vector_rankings, strict=True)
         )
-    )
+    ) if not retrieval_only else [(ranking, 0.0) for ranking in vector_rankings]
     reranked_rankings = [ranking for ranking, _elapsed in rerank_results]
     rerank_seconds = [elapsed for _ranking, elapsed in rerank_results]
 
     ranking_groups = {
         "lexical": lexical_rankings,
         "embedding": vector_rankings,
-        "embedding_plus_reranker": reranked_rankings,
     }
+    if not retrieval_only:
+        ranking_groups["embedding_plus_reranker"] = reranked_rankings
     if use_indexes:
         hybrid_results = await asyncio.gather(
             *(
                 rerank_one(case, ranking)
-                for case, ranking in zip(test_cases, hybrid_rankings, strict=True)
+                for case, ranking in zip(test_cases, protected_rankings, strict=True)
             )
-        )
+        ) if not retrieval_only else []
         ranking_groups.update(
             {
                 "milvus": index_rankings,
                 "neo4j_entity_graph": graph_rankings,
+                "entity_alias_only": alias_rankings,
                 "hybrid_rrf": hybrid_rankings,
-                "hybrid_plus_reranker": [ranking for ranking, _elapsed in hybrid_results],
+                "protected_hybrid": protected_rankings,
             }
         )
+        if not retrieval_only:
+            ranking_groups["protected_hybrid_plus_reranker"] = [r for r, _ in hybrid_results]
 
     grouped_metrics = {}
     for language in sorted({case.get("language") or "unspecified" for case in test_cases}):
@@ -203,13 +228,35 @@ async def run_benchmark(
                 for name, rankings in ranking_groups.items()
             },
         }
-    ordered_latency = sorted(rerank_seconds)
+    rerank_latency = latency_summary(rerank_seconds if not retrieval_only else [])
+    def metrics(rankings, selected):
+        selected_rankings = [rankings[i] for i in selected]
+        selected_cases = [test_cases[i] for i in selected]
+        return {**metric_summary(selected_rankings, [c["relevant_chunk_ids"] for c in selected_cases]),
+                **evidence_summary(selected_rankings, selected_cases)}
+
+    slices = {}
+    for field in ("split", "category", "evidence_language", "difficulty"):
+        slices[field] = {}
+        for value in sorted({case.get(field, "unspecified") for case in test_cases}):
+            selected = [i for i, case in enumerate(test_cases) if case.get(field, "unspecified") == value]
+            slices[field][value] = {"case_count": len(selected), **{
+                name: metrics(rankings, selected) for name, rankings in ranking_groups.items()
+            }}
+    linker = EntityLinker(catalog_for(bundle))
+    linking_rows = []
+    for case in test_cases:
+        expected = set(case.get("expected_entity_ids", []))
+        actual = {match["id"] for match in linker.link(case["query"], query=True)}
+        if expected:
+            linking_rows.append(len(actual & expected) / len(expected))
     return {
         "created_at": datetime.now(UTC).isoformat(),
         "version": cases.get("version", "unspecified"),
         "scope": cases.get("scope", "local research evaluation"),
         "label_status": cases.get("label_status", "provisional"),
         "corpus_fingerprint": bundle["fingerprint"],
+        "graph_identity": graph_identity(bundle),
         "cases_sha256": sha256(json.dumps(cases, ensure_ascii=False, sort_keys=True)),
         "embedding_model": settings.embedding_model,
         "embedding_model_revision": settings.embedding_model_revision,
@@ -219,28 +266,34 @@ async def run_benchmark(
         "concurrency": concurrency,
         "use_indexes": use_indexes,
         "case_count": len(test_cases),
+        "suite_case_count": len(test_cases) + len(controls),
+        "controls": {"prepared": len(controls), "execution_status": "not-executed-chat-deferred"},
+        "cache": {"enabled": cache_path is not None, "hits": cache.hits, "model_requests": cache.calls},
+        "retrieval_only": retrieval_only,
+        "entity_linking": {"labeled_cases": len(linking_rows),
+                           "macro_recall": sum(linking_rows) / len(linking_rows) if linking_rows else None},
         "chunk_count": len(rows),
         "embedding_dimension": len(document_vectors[0]),
         "metrics": {
-            name: metric_summary(rankings, relevant) for name, rankings in ranking_groups.items()
+            name: metrics(rankings, list(range(len(test_cases))))
+            for name, rankings in ranking_groups.items()
         },
         "metrics_by_language": grouped_metrics,
+        "metrics_by_slice": slices,
         "latency_seconds": {
             "document_embedding_total": round(document_embedding_seconds, 3),
             "query_embedding_total": round(query_embedding_seconds, 3),
-            "reranker_mean_per_query": round(sum(rerank_seconds) / len(rerank_seconds), 3),
-            "reranker_max_per_query": round(max(rerank_seconds), 3),
-            "reranker_p50_per_query": round(ordered_latency[(len(ordered_latency) - 1) // 2], 3),
-            "reranker_p95_per_query": round(
-                ordered_latency[math.ceil(len(ordered_latency) * 0.95) - 1], 3
-            ),
+            "reranker_mean_per_query": rerank_latency["mean"],
+            "reranker_max_per_query": rerank_latency["max"],
+            "reranker_p50_per_query": rerank_latency["p50"],
+            "reranker_p95_per_query": rerank_latency["p95"],
             "database_query_mean": round(sum(index_seconds) / len(index_seconds), 3)
             if index_seconds
             else None,
             "hybrid_reranker_mean_per_query": round(
                 sum(elapsed for _, elapsed in hybrid_results) / len(hybrid_results), 3
             )
-            if use_indexes
+            if use_indexes and hybrid_results
             else None,
         },
         "results": [
@@ -251,7 +304,7 @@ async def run_benchmark(
                 "relevant_chunk_ids": labels,
                 "lexical_top5": lexical[:5],
                 "embedding_top5": vector[:5],
-                "reranked_top5": reranked[:5],
+                "reranked_top5": reranked[:5] if not retrieval_only else None,
                 "rankings_top5": {
                     name: rankings[index][:5] for name, rankings in ranking_groups.items()
                 },
@@ -272,6 +325,9 @@ async def run_benchmark(
             "exploratory benchmark with provisional labels; not expert reviewed or a blinded test",
             "retrieval quality only; no generated-answer or expert teaching-quality evaluation",
             "all source chunks remain in research mode and are not production-approved",
+            "frozen labels are engineering-authored, not an independently authored expert gold standard",
+            "latencies include cache hits when enabled; do not compare them with cold inference timings",
+            "precision uses incomplete provisional binary labels; unlabelled chunks may be relevant",
         ],
     }
 
@@ -287,16 +343,25 @@ def main() -> None:
         help="also verify real Milvus/Neo4j and hybrid retrieval",
     )
     parser.add_argument("--concurrency", type=int, default=1, choices=[1, 2])
+    parser.add_argument("--cache", type=Path)
+    parser.add_argument("--retrieval-only", action="store_true")
+    parser.add_argument("--frozen-lock", type=Path)
     args = parser.parse_args()
+    cases_text = args.cases.read_text(encoding="utf-8")
+    if args.frozen_lock:
+        validate_frozen_lock(cases_text, json.loads(args.frozen_lock.read_text(encoding="utf-8")))
     settings = get_settings().model_copy(update={"knowledge_bundle": str(args.bundle)})
-    report = asyncio.run(
-        run_benchmark(
-            settings,
-            json.loads(args.cases.read_text(encoding="utf-8")),
-            use_indexes=args.use_indexes,
-            concurrency=args.concurrency,
+    with benchmark_cache_lock(args.cache):
+        report = asyncio.run(
+            run_benchmark(
+                settings,
+                json.loads(cases_text),
+                use_indexes=args.use_indexes,
+                concurrency=args.concurrency,
+                cache_path=args.cache,
+                retrieval_only=args.retrieval_only,
+            )
         )
-    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(

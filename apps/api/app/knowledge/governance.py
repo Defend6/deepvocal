@@ -46,6 +46,10 @@ def load_bundle(path: str | Path, mode: str) -> dict:
     fingerprint = sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False))
     if bundle.get("fingerprint") != fingerprint:
         raise ValueError("knowledge fingerprint mismatch")
+    if "graph_catalog" in bundle:
+        digest = sha256(json.dumps(bundle["graph_catalog"], sort_keys=True, ensure_ascii=False))
+        if bundle.get("graph_catalog_sha256") != digest:
+            raise ValueError("graph catalog fingerprint mismatch")
     return bundle
 
 
@@ -157,6 +161,13 @@ def prepare(
         "fingerprint": sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False)),
         "production_enabled": False,
     }
+    catalog_path = root / "working" / "entity-catalog.json"
+    if catalog_path.is_file():
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        bundle["graph_catalog"] = catalog
+        bundle["graph_catalog_sha256"] = sha256(
+            json.dumps(catalog, sort_keys=True, ensure_ascii=False)
+        )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
     audit = {

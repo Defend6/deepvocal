@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('ingest','verify','benchmark')][string]$Action = 'verify',
+    [ValidateSet('ingest','verify','benchmark','rebuild-graph')][string]$Action = 'verify',
     [ValidateSet('pilot','full')][string]$Scope = 'pilot',
     [string]$DatasetRoot = 'D:\deepvocal\datasets',
     [string]$Cases = '',
@@ -7,7 +7,10 @@ param(
     [string]$EmbeddingModel = 'bge-m3:latest',
     [string]$RerankerModel = 'kftof/bge-reranker-v2-m3-onnx-int8-avx2',
     [string]$RerankerRevision = 'da3c866dd7312855dbe7d114d61a4b517c5457b1',
-    [switch]$UseIndexes
+    [switch]$UseIndexes,
+    [switch]$RetrievalOnly,
+    [switch]$UseCache,
+    [string]$FrozenLock = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -15,7 +18,10 @@ $resolvedDatasetRoot = (Resolve-Path -LiteralPath $DatasetRoot).Path
 $bundleName = if ($Scope -eq 'pilot') { 'knowledge-pilot-20.json' } else { 'knowledge.json' }
 $bundle = Join-Path $resolvedDatasetRoot "working\$bundleName"
 if (-not (Test-Path -LiteralPath $bundle)) { throw "Knowledge bundle missing: $bundle" }
-if (-not $Cases) { $Cases = Join-Path $resolvedDatasetRoot 'working\retrieval-eval-pilot-v1.json' }
+if (-not $Cases) {
+    $caseName = if ($Scope -eq 'pilot') { 'retrieval-eval-pilot-v1.json' } else { 'retrieval-model-comparison-v1.json' }
+    $Cases = Join-Path $resolvedDatasetRoot "working\$caseName"
+}
 if (-not $Output) { $Output = Join-Path $resolvedDatasetRoot "evaluation\$Scope-retrieval-bge-m3.json" }
 New-Item -ItemType Directory -Force -Path (Join-Path $resolvedDatasetRoot 'evaluation') | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $resolvedDatasetRoot 'indexes') | Out-Null
@@ -49,10 +55,17 @@ if ($Action -eq 'benchmark') {
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
     $dockerArgs += @('--mount', "type=bind,source=$resolvedCases,target=/evaluation-cases.json,readonly")
     $dockerArgs += @('--mount', "type=bind,source=$outputDirectory,target=/evaluation-output")
+    if ($FrozenLock) {
+        $resolvedLock = (Resolve-Path -LiteralPath $FrozenLock).Path
+        $dockerArgs += @('--mount', "type=bind,source=$resolvedLock,target=/frozen-lock.json,readonly")
+    }
     $dockerArgs += @('deepvocal-api:local', 'python', '-m', 'app.knowledge.local_benchmark',
         '--bundle', "/app/datasets/working/$bundleName", '--cases', '/evaluation-cases.json',
         '--output', "/evaluation-output/$(Split-Path -Leaf $Output)")
     if ($UseIndexes) { $dockerArgs += '--use-indexes' }
+    if ($RetrievalOnly) { $dockerArgs += '--retrieval-only' }
+    if ($UseCache) { $dockerArgs += @('--cache', '/app/datasets/evaluation/local-model-benchmark-cache.json') }
+    if ($FrozenLock) { $dockerArgs += @('--frozen-lock', '/frozen-lock.json') }
 } else {
     $dockerArgs += @('deepvocal-api:local', 'python', '-m', 'app.knowledge.cli', $Action)
 }
