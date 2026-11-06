@@ -8,12 +8,12 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.knowledge.budget import BudgetBlocked
+from app.knowledge.entities import compile_graph, graph_identity, protected_candidates
 from app.knowledge.governance import load_bundle
 from app.knowledge.indexes import (
     KnowledgeIndexes,
     index_identity,
     lexical_search,
-    reciprocal_rank_fusion,
 )
 from app.knowledge.policy import KnowledgeInput, health_boundary
 from app.knowledge.provider import ModelProvider, ProviderDisabled, ProviderError
@@ -35,7 +35,8 @@ class KnowledgeService:
         bundle = load_bundle(self.settings.knowledge_bundle, self.settings.knowledge_mode)
         if not bundle["chunks"]:
             return {"status": "blocked", "reason": "NO_APPROVED_CHUNKS"}
-        if not self.settings.model_api_key:
+        compile_graph(bundle)  # Validate source evidence before dispatching any model request.
+        if not self.settings.model_api_key and not self.settings.embedding_api_base:
             return {
                 "status": "disabled",
                 "reason": "MODEL_API_KEY_REQUIRED",
@@ -54,8 +55,10 @@ class KnowledgeService:
             **vector_manifest,
             "index_identity": index_identity(bundle, self.settings),
             "fingerprint": bundle["fingerprint"],
+            "graph_identity": graph_identity(bundle),
             "mode": bundle["mode"],
             "embedding_model": self.settings.embedding_model,
+            "embedding_model_revision": self.settings.embedding_model_revision,
             "status": "ready",
         }
         path = Path(self.settings.knowledge_index_manifest)
@@ -81,6 +84,7 @@ class KnowledgeService:
             }
         try:
             bundle = load_bundle(self.settings.knowledge_bundle, self.settings.knowledge_mode)
+            compile_graph(bundle)
         except (OSError, ValueError, KeyError):
             return {
                 "status": "disabled",
@@ -120,10 +124,12 @@ class KnowledgeService:
                 await self.ingest()
             vector = (await self.provider.embed([question]))[0]
             vector_ids = await asyncio.to_thread(self.indexes.vector_search, bundle, vector)
-            graph_ids = await asyncio.to_thread(self.indexes.graph_search, bundle, question)
+            graph_ids = await asyncio.to_thread(
+                self.indexes.graph_search, bundle, question, seed_ids=vector_ids[:2]
+            )
             candidates = [
                 by_id[key]
-                for key in reciprocal_rank_fusion(lexical, vector_ids, graph_ids)
+                for key in protected_candidates(vector_ids, lexical, graph_ids)
                 if key in by_id
             ][:12]
             if not candidates:

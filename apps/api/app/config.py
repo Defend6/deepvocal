@@ -34,9 +34,15 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:16379/0"
     model_api_base: str = "https://api.siliconflow.cn/v1"
     model_api_key: str = ""
+    model_budget_enforced: bool = True
+    # Optional local endpoints keep embeddings and reranking independent from chat APIs.
+    embedding_api_base: str = ""
+    reranker_api_base: str = ""
     chat_model: str = "Qwen/Qwen3-8B"
     embedding_model: str = "BAAI/bge-m3"
+    embedding_model_revision: str = ""
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_model_revision: str = ""
     model_monthly_limit_minor: int = 0
     model_prices_json: str = "{}"
     model_billing_verified: bool = False

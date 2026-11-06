@@ -1,0 +1,27 @@
+name: deepvocal-local-models
+
+services:
+  reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    container_name: deepvocal-reranker
+    restart: unless-stopped
+    ports: ["127.0.0.1:18081:80"]
+    volumes:
+      - type: bind
+        source: ${DEEPVOCAL_MODEL_CACHE:-D:/ollama/models/tei-cache}
+        target: /data
+    # Explicitly record this CPU INT8 conversion; it is not the original FP32 weights.
+    command:
+      - --model-id
+      - kftof/bge-reranker-v2-m3-onnx-int8-avx2
+      - --revision
+      - da3c866dd7312855dbe7d114d61a4b517c5457b1
+      - --hostname
+      - 0.0.0.0
+      - --auto-truncate
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/health"]
+      interval: 20s
+      timeout: 10s
+      start_period: 300s
+      retries: 10

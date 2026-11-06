@@ -31,6 +31,8 @@ def test_unknown_intent_clarifies() -> None:
         ("如何制定练习计划", "planning"),
         ("帮我制定音准练习计划，每天10分钟，共3天", "planning"),
         ("如何分析这段录音", "assessment"),
+        ("评估节奏准确性需要什么参考信息？只有一段演唱录音够吗？", "knowledge"),
+        ("请分析这段演唱录音评估音准", "assessment"),
         ("音准", "knowledge"),
         ("录音中音高偏差的原理是什么", "knowledge"),
         ("什么是歌声生成", "knowledge"),
@@ -86,6 +88,24 @@ def test_health_endpoint_reports_mock_capabilities(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["singing_enabled"] is False
+
+
+def test_knowledge_capability_does_not_require_prices_when_budget_metering_is_disabled(
+    monkeypatch,
+) -> None:
+    from app import main
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        main.settings.model_copy(
+            update={"model_api_key": "configured-test-key", "model_budget_enforced": False}
+        ),
+    )
+    response = client.get("/v1/agents/knowledge/capabilities")
+    assert response.status_code == 200
+    assert response.json()["enabled"] is True
+    assert "budget metering is disabled" in response.json()["reason"]
 
 
 def test_corpus_status_exposes_review_gate(tmp_path, monkeypatch) -> None:

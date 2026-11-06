@@ -21,7 +21,7 @@ class ProviderError(RuntimeError):
 
 
 class ModelProvider:
-    """Bounded HTTP adapter; no request is sent without an explicitly configured key."""
+    """Bounded HTTP adapter for metered remote APIs and explicitly configured local services."""
 
     def __init__(
         self, settings, transport=None, budget=None, owner_id=None, job_id=None, claim_context=None
@@ -33,6 +33,12 @@ class ModelProvider:
         self.claim_context = claim_context
 
     async def post(self, endpoint: str, body: dict) -> dict:
+        local_base = {
+            "/embeddings": self.settings.embedding_api_base,
+            "/rerank": self.settings.reranker_api_base,
+        }.get(endpoint, "")
+        if local_base:
+            return await self._post_local(local_base, endpoint, body)
         if not self.settings.model_api_key:
             raise ProviderDisabled("MODEL_API_KEY_REQUIRED")
         if endpoint not in {"/embeddings", "/rerank", "/chat/completions"}:
@@ -43,8 +49,16 @@ class ModelProvider:
             job_id=self.job_id,
             claim_context=self.claim_context,
         )
-        call_id = await ledger.reserve(endpoint, body)
-        await ledger.dispatch(call_id)
+        call_id = None
+        if self.settings.model_budget_enforced:
+            call_id = await ledger.reserve(endpoint, body)
+            await ledger.dispatch(call_id)
+        elif self.job_id is not None:
+            # Keep cancellation and lease checks even when local metering is disabled.
+            from app.database import _session_factory
+
+            async with _session_factory()() as session:
+                await ledger.check_claim(session)
         payload = None
         try:
             async with httpx.AsyncClient(timeout=45, transport=self.transport) as client:  # noqa: SIM117 -- stream uses this client's lifetime
@@ -70,10 +84,55 @@ class ModelProvider:
         finally:
             # Shield accounting from cancellation. A crash/DB failure leaves the reservation held,
             # never automatically releases a possibly billed call.
-            try:
-                await asyncio.shield(ledger.settle(call_id, payload))
-            except Exception:  # noqa: BLE001 -- preserve held amount and redact provider data
-                logger.error("Model accounting settlement deferred; reservation remains held")
+            if call_id is not None:
+                try:
+                    await asyncio.shield(ledger.settle(call_id, payload))
+                except Exception:  # noqa: BLE001 -- preserve held amount and redact provider data
+                    logger.error("Model accounting settlement deferred; reservation remains held")
+
+    async def _post_local(self, base_url: str, endpoint: str, body: dict) -> dict:
+        if endpoint == "/rerank":
+            # TEI exposes a native cross-encoder contract rather than the gateway's shape.
+            body = {
+                "query": body["query"],
+                "texts": body["documents"],
+                "raw_scores": False,
+            }
+        try:
+            async with httpx.AsyncClient(timeout=180, transport=self.transport) as client:  # noqa: SIM117 -- stream uses this client's lifetime
+                async with client.stream(
+                    "POST", base_url.rstrip("/") + endpoint, json=body
+                ) as response:
+                    response.raise_for_status()
+                    data = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        data.extend(chunk)
+                        if len(data) > 8388608:
+                            raise ProviderError("MODEL_RESPONSE_TOO_LARGE")
+                    payload = json.loads(data)
+            if endpoint == "/rerank":
+                if isinstance(payload, list):
+                    rows = payload
+                elif isinstance(payload, dict):
+                    rows = payload.get("ranks", payload.get("results"))
+                else:
+                    rows = None
+                if not isinstance(rows, list):
+                    raise ValueError("rerank response must contain ranks")
+                return {
+                    "results": [
+                        {
+                            "index": row["index"],
+                            "relevance_score": row.get("score", row.get("relevance_score")),
+                        }
+                        for row in rows
+                    ]
+                }
+            if not isinstance(payload, dict):
+                raise TypeError("model response must be an object")
+            return payload
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise ProviderError("LOCAL_MODEL_REQUEST_FAILED") from exc
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts or len(texts) > 32 or any(len(t) > 6000 for t in texts):
@@ -96,6 +155,14 @@ class ModelProvider:
             raise ProviderError("INVALID_EMBEDDING_RESPONSE") from exc
 
     async def rerank(self, query: str, documents: list[str]) -> list[tuple[int, float]]:
+        if (
+            not query.strip()
+            or len(query) > 4000
+            or not documents
+            or len(documents) > 32
+            or any(not text.strip() or len(text) > 6000 for text in documents)
+        ):
+            raise ProviderError("INVALID_RERANK_BATCH")
         payload = await self.post(
             "/rerank",
             {

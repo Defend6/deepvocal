@@ -43,6 +43,30 @@ def test_unconfigured_budget_sends_no_request_and_decimal_rounds_up():
         price_quote(configured(), {"model": "BAAI/bge-m3", "input": "x" * 524289})
 
 
+def test_disabled_budget_sends_remote_request_without_accounting():
+    sent = []
+
+    class ForbiddenBudget:
+        async def reserve(self, *_args, **_kwargs):
+            raise AssertionError("disabled budget must not reserve model spend")
+
+        async def settle(self, *_args, **_kwargs):
+            raise AssertionError("disabled budget must not settle model spend")
+
+    def respond(request):
+        sent.append(request)
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": "根据资料说明。[1]"}}]
+        })
+
+    settings = Settings(model_api_key="test-key", model_budget_enforced=False)
+    provider = ModelProvider(settings, httpx.MockTransport(respond), budget=ForbiddenBudget())
+    assert asyncio.run(provider.answer("测试问题", [{"text": "证据"}])) == "根据资料说明。[1]"
+    assert len(sent) == 1
+    assert sent[0].headers["Authorization"] == "Bearer test-key"
+    assert sent[0].url.path.endswith("/chat/completions")
+
+
 @pytest.mark.skipif(not os.getenv("TEST_DATABASE_URL"), reason="requires PostgreSQL")
 def test_concurrent_budget_reservations_idempotency_settlement_and_owner_isolation(monkeypatch):
     period = "test-" + str(uuid4())

@@ -47,7 +47,9 @@ class RuleRouter:
             k in normalized for k in ("我唱得怎么样", "帮我听", "看看有没有跑调", "评价我的演唱")
         )
         # A bare audio attachment description can request analysis; a theory question cannot.
-        theory = any(k in normalized for k in ("什么是", "为什么", "原理", "区别", "含义"))
+        theory = any(k in normalized for k in ("什么是", "为什么", "原理", "区别", "含义")) or bool(
+            re.search(r"(?:需要|要什么|哪些).{0,8}(?:参考|信息|材料|资料)", normalized)
+        )
         if theory and not any(k in normalized for k in ("帮我", "请分析", "请制定", "并", "然后")):
             return RouteDecision("knowledge", "vocal theory question", 0.9, ("knowledge.retrieve",))
         if assessment and planning and not singing:

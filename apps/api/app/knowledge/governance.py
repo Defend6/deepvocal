@@ -14,7 +14,7 @@ def sha256(text: str) -> str:
 def permitted(row: dict, mode: str) -> bool:
     if row.get("text_sha256") != sha256(row.get("text", "")):
         return False
-    if row.get("language") != "zh" or not row.get("url") or not row.get("license_evidence"):
+    if row.get("language") not in {"zh", "en"} or not row.get("url") or not row.get("license_evidence"):
         return False
     if not row.get("license_verified") or row.get("review_status") == "BLOCKED":
         return False
@@ -46,6 +46,10 @@ def load_bundle(path: str | Path, mode: str) -> dict:
     fingerprint = sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False))
     if bundle.get("fingerprint") != fingerprint:
         raise ValueError("knowledge fingerprint mismatch")
+    if "graph_catalog" in bundle:
+        digest = sha256(json.dumps(bundle["graph_catalog"], sort_keys=True, ensure_ascii=False))
+        if bundle.get("graph_catalog_sha256") != digest:
+            raise ValueError("graph catalog fingerprint mismatch")
     return bundle
 
 
@@ -79,6 +83,49 @@ def prepare(
         }
         if permitted(row, mode):
             rows.append(row)
+    filtered_path = root / "working" / "zh-filtered-candidates.json"
+    if filtered_path.is_file():
+        filtered = json.loads(filtered_path.read_text(encoding="utf-8"))
+        for row in filtered.get("candidates", []):
+            if permitted(row, mode) and row["id"] not in {item["id"] for item in rows}:
+                rows.append(row)
+    source_by_id = {source["source_id"]: source for source in registry["sources"]}
+    documents: dict[str, dict] = {}
+    documents_path = root / "normalized" / "documents.jsonl"
+    if documents_path.is_file():
+        for line in documents_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                document = json.loads(line)
+                documents[document["document_id"]] = document
+    chunks_path = root / "normalized" / "chunks.jsonl"
+    if chunks_path.is_file():
+        for line in chunks_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            chunk = json.loads(line)
+            source = source_by_id.get(chunk.get("source_id"))
+            document = documents.get(chunk.get("document_id"), {})
+            if not source or chunk.get("language") not in {"zh", "en"}:
+                continue
+            row = {
+                "id": chunk["chunk_id"],
+                "title": document.get("title", chunk["chunk_id"]),
+                "entities": document.get("categories", []),
+                "text": chunk["text"],
+                "source_id": chunk["source_id"],
+                "language": chunk["language"],
+                "license": source.get("license", "UNKNOWN"),
+                "license_verified": bool(source.get("license_evidence")),
+                "license_evidence": source.get("license_evidence", ""),
+                "url": source.get("url", ""),
+                "source_locator": document.get("source_locator", ""),
+                "review_status": source.get("review_status", "NEEDS_REVIEW"),
+                "expert_reviewed": False,
+                "production_enabled": bool(source.get("production_enabled", False)),
+                "text_sha256": sha256(chunk["text"]),
+            }
+            if permitted(row, mode) and row["id"] not in {item["id"] for item in rows}:
+                rows.append(row)
     # Existing collected sources remain separate; their expert/rights status is never fabricated.
     for source in registry["sources"]:
         license_name = source.get("license", "UNKNOWN")
@@ -114,6 +161,13 @@ def prepare(
         "fingerprint": sha256(json.dumps(rows, sort_keys=True, ensure_ascii=False)),
         "production_enabled": False,
     }
+    catalog_path = root / "working" / "entity-catalog.json"
+    if catalog_path.is_file():
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+        bundle["graph_catalog"] = catalog
+        bundle["graph_catalog_sha256"] = sha256(
+            json.dumps(catalog, sort_keys=True, ensure_ascii=False)
+        )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
     audit = {
