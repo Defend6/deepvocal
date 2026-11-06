@@ -145,4 +145,3 @@ function GeneratedAudio({assetId, identity}: {assetId: string; identity: string}
   }}>播放生成歌声</button>{url && <><audio controls src={url} /><a href={url} download>下载音频</a></>}
     {error && <p role="alert">{error}</p>}</div>;
 }
-
