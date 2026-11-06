@@ -35,7 +35,7 @@ class KnowledgeService:
         bundle = load_bundle(self.settings.knowledge_bundle, self.settings.knowledge_mode)
         if not bundle["chunks"]:
             return {"status": "blocked", "reason": "NO_APPROVED_CHUNKS"}
-        if not self.settings.model_api_key:
+        if not self.settings.model_api_key and not self.settings.embedding_api_base:
             return {
                 "status": "disabled",
                 "reason": "MODEL_API_KEY_REQUIRED",
@@ -56,6 +56,7 @@ class KnowledgeService:
             "fingerprint": bundle["fingerprint"],
             "mode": bundle["mode"],
             "embedding_model": self.settings.embedding_model,
+            "embedding_model_revision": self.settings.embedding_model_revision,
             "status": "ready",
         }
         path = Path(self.settings.knowledge_index_manifest)

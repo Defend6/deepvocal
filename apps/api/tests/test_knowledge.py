@@ -98,6 +98,38 @@ def test_provider_http_contract_secret_redaction_and_vector_validation():
     assert "test-secret" not in str(exc.value) and "upstream" not in str(exc.value)
 
 
+def test_local_embedding_and_reranking_bypass_remote_budget_and_translate_contracts():
+    requests = []
+
+    class ForbiddenBudget:
+        async def reserve(self, *_args, **_kwargs):
+            raise AssertionError("local model requests must not reserve remote spend")
+
+    def respond(request):
+        requests.append(request)
+        assert "Authorization" not in request.headers
+        body = json.loads(request.content)
+        if request.url.path == "/v1/embeddings":
+            assert body["model"] == "bge-m3"
+            return httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]})
+        assert request.url.path == "/rerank"
+        assert body == {"query": "breath support", "texts": ["wrong", "right"], "raw_scores": False}
+        return httpx.Response(200, json=[{"index": 1, "score": 0.91}, {"index": 0, "score": 0.08}])
+
+    settings = Settings(
+        embedding_model="bge-m3",
+        embedding_api_base="http://ollama/v1",
+        reranker_api_base="http://tei",
+    )
+    provider = ModelProvider(settings, httpx.MockTransport(respond), budget=ForbiddenBudget())
+    assert asyncio.run(provider.embed(["唱歌时怎样安排呼吸练习"])) == [[0.1, 0.2, 0.3]]
+    assert asyncio.run(provider.rerank("breath support", ["wrong", "right"])) == [
+        (1, 0.91),
+        (0, 0.08),
+    ]
+    assert [request.url.path for request in requests] == ["/v1/embeddings", "/rerank"]
+
+
 def test_full_retrieval_citation_validation_with_test_provider(tmp_path):
     settings, _bundle = prepared(tmp_path)
     settings = settings.model_copy(update={"model_api_key": "test"})
@@ -150,6 +182,13 @@ def test_real_neo4j_milvus_index_round_trip_with_synthetic_test_vectors(tmp_path
             json.dumps({**manifest, "index_identity": index_identity(bundle, settings)})
         )
         assert indexes.vector_search(bundle, [1.0, 0.0, 0.0, 0.0])[0] == "pitch"
+        verification = indexes.verify(bundle)
+        assert verification["milvus_chunks"] == verification["neo4j_chunks"] == 2
+        assert verification["graph_mentions"] == 3
+        settings.embedding_model_revision = "different-weights"
+        with pytest.raises(ValueError, match="rebuild"):
+            indexes.vector_search(bundle, [1.0, 0.0, 0.0, 0.0])
+        settings.embedding_model_revision = ""
         settings.embedding_model = "different-model"
         with pytest.raises(ValueError, match="rebuild"):
             indexes.vector_search(bundle, [1.0, 0.0, 0.0, 0.0])

@@ -8,14 +8,68 @@ from app.knowledge.governance import sha256, terms
 
 
 def index_identity(bundle: dict, settings) -> str:
+    revision = f"|{settings.embedding_model_revision}" if settings.embedding_model_revision else ""
     return sha256(
-        f"{bundle['fingerprint']}|{bundle['mode']}|{settings.model_api_base}|{settings.embedding_model}"
+        f"{bundle['fingerprint']}|{bundle['mode']}|"
+        f"{settings.embedding_api_base or settings.model_api_base}|{settings.embedding_model}{revision}"
     )[:24]
 
 
 class KnowledgeIndexes:
     def __init__(self, settings):
         self.settings = settings
+
+    def verify(self, bundle: dict) -> dict:
+        """Check stored ids against the governed bundle, without altering either database."""
+        from neo4j import GraphDatabase
+        from pymilvus import MilvusClient
+
+        manifest = json.loads(
+            Path(self.settings.knowledge_index_manifest).read_text(encoding="utf-8")
+        )
+        if manifest.get("index_identity") != index_identity(bundle, self.settings):
+            raise ValueError("embedding model or corpus changed; rebuild indexes")
+        expected = {row["id"] for row in bundle["chunks"]}
+        client = MilvusClient(uri=self.settings.milvus_uri)
+        try:
+            records = client.query(
+                collection_name=manifest["collection"],
+                filter="",
+                output_fields=["id"],
+                limit=len(expected) + 1,
+                consistency_level="Strong",
+            )
+        finally:
+            client.close()
+        if {row["id"] for row in records} != expected:
+            raise ValueError("Milvus ids differ from the knowledge bundle")
+        with GraphDatabase.driver(
+            self.settings.neo4j_uri, auth=(self.settings.neo4j_user, self.settings.neo4j_password)
+        ) as driver:
+            graph, _, _ = driver.execute_query(
+                "MATCH (c:DVChunk {fingerprint:$fp,mode:$mode}) RETURN collect(c.chunk_id) AS ids",
+                fp=bundle["fingerprint"],
+                mode=bundle["mode"],
+            )
+            stats, _, _ = driver.execute_query(
+                "MATCH (c:DVChunk {fingerprint:$fp,mode:$mode})-[r:MENTIONS]->(e:DVEntity) "
+                "RETURN count(r) AS mentions,count(DISTINCT e) AS entities",
+                fp=bundle["fingerprint"],
+                mode=bundle["mode"],
+            )
+        if set(graph[0]["ids"]) != expected:
+            raise ValueError("Neo4j ids differ from the knowledge bundle")
+        return {
+            "status": "verified",
+            "mode": bundle["mode"],
+            "fingerprint": bundle["fingerprint"],
+            "collection": manifest["collection"],
+            "dimension": manifest["dimension"],
+            "milvus_chunks": len(records),
+            "neo4j_chunks": len(graph[0]["ids"]),
+            "graph_entities": stats[0]["entities"],
+            "graph_mentions": stats[0]["mentions"],
+        }
 
     def graph_load(self, bundle: dict) -> None:
         from neo4j import GraphDatabase
@@ -67,7 +121,7 @@ class KnowledgeIndexes:
                 return []
             records, _, _ = driver.execute_query(
                 """
-                CALL {
+                CALL () {
                     MATCH (c:DVChunk)-[:MENTIONS]->(e:DVEntity)
                     WHERE c.fingerprint=$fingerprint AND c.mode=$mode AND e.name IN $entities
                     RETURN c.chunk_id AS id,3.0 AS score
