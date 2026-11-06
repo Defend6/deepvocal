@@ -49,8 +49,16 @@ class ModelProvider:
             job_id=self.job_id,
             claim_context=self.claim_context,
         )
-        call_id = await ledger.reserve(endpoint, body)
-        await ledger.dispatch(call_id)
+        call_id = None
+        if self.settings.model_budget_enforced:
+            call_id = await ledger.reserve(endpoint, body)
+            await ledger.dispatch(call_id)
+        elif self.job_id is not None:
+            # Keep cancellation and lease checks even when local metering is disabled.
+            from app.database import _session_factory
+
+            async with _session_factory()() as session:
+                await ledger.check_claim(session)
         payload = None
         try:
             async with httpx.AsyncClient(timeout=45, transport=self.transport) as client:  # noqa: SIM117 -- stream uses this client's lifetime
@@ -76,10 +84,11 @@ class ModelProvider:
         finally:
             # Shield accounting from cancellation. A crash/DB failure leaves the reservation held,
             # never automatically releases a possibly billed call.
-            try:
-                await asyncio.shield(ledger.settle(call_id, payload))
-            except Exception:  # noqa: BLE001 -- preserve held amount and redact provider data
-                logger.error("Model accounting settlement deferred; reservation remains held")
+            if call_id is not None:
+                try:
+                    await asyncio.shield(ledger.settle(call_id, payload))
+                except Exception:  # noqa: BLE001 -- preserve held amount and redact provider data
+                    logger.error("Model accounting settlement deferred; reservation remains held")
 
     async def _post_local(self, base_url: str, endpoint: str, body: dict) -> dict:
         if endpoint == "/rerank":

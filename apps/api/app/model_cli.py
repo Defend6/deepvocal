@@ -49,18 +49,22 @@ def main():
         return
     settings = get_settings()
     checks = {"key_present": bool(settings.model_api_key)}
-    for model in (settings.chat_model, settings.embedding_model, settings.reranker_model):
-        try:
-            price_quote(settings, {"model": model})
-        except BudgetBlocked as exc:
-            checks[model] = str(exc)
-        else:
-            checks[model] = "configured"
+    if settings.model_budget_enforced:
+        for model in (settings.chat_model, settings.embedding_model, settings.reranker_model):
+            try:
+                price_quote(settings, {"model": model})
+            except BudgetBlocked as exc:
+                checks[model] = str(exc)
+            else:
+                checks[model] = "configured"
+    else:
+        checks["budget_enforced"] = False
     print(json.dumps({"checks": checks, "network_requests": 0}, ensure_ascii=False, indent=2))
     raise SystemExit(
         0
         if checks["key_present"]
-        and all(value == "configured" for key, value in checks.items() if key != "key_present")
+        and all(value == "configured" for key, value in checks.items()
+                if key not in {"key_present", "budget_enforced"})
         else 1
     )
 

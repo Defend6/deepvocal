@@ -143,7 +143,7 @@ def capabilities(agent: str) -> CapabilityResponse:
 
         reason = "MODEL_API_KEY_REQUIRED"
         enabled = False
-        if settings.model_api_key:
+        if settings.model_api_key and settings.model_budget_enforced:
             try:
                 for model in (
                     settings.chat_model,
@@ -156,6 +156,9 @@ def capabilities(agent: str) -> CapabilityResponse:
             else:
                 enabled = True
                 reason = "research corpus and provider account must pass validation"
+        elif settings.model_api_key:
+            enabled = True
+            reason = "model provider configured; local budget metering is disabled"
         return CapabilityResponse(
             agent=agent,
             enabled=enabled,

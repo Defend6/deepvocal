@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://127.0.0.1:16379/0"
     model_api_base: str = "https://api.siliconflow.cn/v1"
     model_api_key: str = ""
+    model_budget_enforced: bool = True
     # Optional local endpoints keep embeddings and reranking independent from chat APIs.
     embedding_api_base: str = ""
     reranker_api_base: str = ""

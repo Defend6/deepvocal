@@ -2,6 +2,11 @@ param([ValidateSet('setup','api','worker','web','test','e2e')][string]$Action = 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $projectRoot
+$sharedEnv = Join-Path (Split-Path -Parent (Split-Path -Parent $projectRoot)) '.env'
+$localEnv = Join-Path $projectRoot '.env'
+if (-not (Test-Path -LiteralPath $localEnv) -and (Test-Path -LiteralPath $sharedEnv)) {
+    Copy-Item -LiteralPath $sharedEnv -Destination $localEnv
+}
 $pythonExe = Join-Path $projectRoot '.venv\Scripts\python.exe'
 New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot '_qa') | Out-Null
 $env:npm_config_cache = Join-Path $projectRoot '_qa\npm-cache'
@@ -19,8 +24,16 @@ switch ($Action) {
         npm --prefix apps/web ci; Assert-Exit
         Write-Output 'Setup finished. Run api, worker and web in three terminals.'
     }
-    'api' { & $pythonExe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000 --no-access-log }
-    'worker' { & $pythonExe -m app.worker }
+    'api' {
+        $env:EMBEDDING_API_BASE = 'http://127.0.0.1:11434/v1'
+        $env:RERANKER_API_BASE = 'http://127.0.0.1:18081'
+        & $pythonExe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000 --no-access-log
+    }
+    'worker' {
+        $env:EMBEDDING_API_BASE = 'http://127.0.0.1:11434/v1'
+        $env:RERANKER_API_BASE = 'http://127.0.0.1:18081'
+        & $pythonExe -m app.worker
+    }
     'web' { npm --prefix apps/web run dev -- --port 5173 --strictPort }
     'test' {
         $testDbExists = docker exec deepvocal-postgres-1 psql -U deepvocal -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='deepvocal_test'"; Assert-Exit
