@@ -30,6 +30,8 @@ def test_unknown_intent_clarifies() -> None:
         ("如何制定练习计划", "planning"),
         ("帮我制定音准练习计划，每天10分钟，共3天", "planning"),
         ("如何分析这段录音", "assessment"),
+        ("评估节奏准确性需要什么参考信息？只有一段演唱录音够吗？", "knowledge"),
+        ("请分析这段演唱录音评估音准", "assessment"),
         ("音准", "knowledge"),
         ("录音中音高偏差的原理是什么", "knowledge"),
         ("什么是歌声生成", "knowledge"),
