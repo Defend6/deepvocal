@@ -141,7 +141,7 @@ async def finish(
             (
                 await session.execute(
                     text("""
-            UPDATE jobs SET status=:status,result=CAST(:result AS jsonb),error_code=:error,
+            UPDATE jobs SET status=:status,result=COALESCE(CAST(:result AS jsonb),result),error_code=:error,
                 worker_token=NULL,lease_until=NULL,updated_at=now(),
                 available_at=now()+:delay*interval '1 second'
             WHERE id=:id AND owner_id=:owner AND status='RUNNING' AND worker_token=:token
@@ -204,6 +204,26 @@ async def default_handler(job: dict) -> dict:
     from app.runtime import execute_job
 
     return await execute_job(job)
+
+
+async def publish_progress(sessions, job, output):
+    """Never let cancelled, expired or superseded attempts publish progress/start more work."""
+    async with sessions() as session:
+        identifier = await session.scalar(
+            text("""UPDATE jobs SET result=CAST(:result AS jsonb),updated_at=now()
+            WHERE id=:id AND owner_id=:owner AND status='RUNNING' AND worker_token=:token
+            AND version=:version AND cancel_requested=false AND lease_until>now() RETURNING id"""),
+            {
+                "id": str(job["id"]),
+                "owner": str(job["owner_id"]),
+                "token": str(job["worker_token"]),
+                "version": job["version"],
+                "result": json.dumps(output, allow_nan=False),
+            },
+        )
+        if not identifier:
+            raise asyncio.CancelledError("workflow claim is no longer active")
+        await session.commit()
 
 
 async def process_one(

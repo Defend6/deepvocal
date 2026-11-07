@@ -2,7 +2,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import AsyncConnection
 from psycopg.rows import dict_row
 
-from app.agents.graph import ToolRegistry, build_graph, thread_config
+from app.agents.graph import ToolRegistry, build_graph, build_workflow_graph, thread_config
 from app.config import get_settings
 
 
@@ -50,13 +50,36 @@ async def execute_job(job: dict) -> dict:
         "skill_context": await selected_skill(str(job["owner_id"]), job["kind"]),
         "followup_plan": job["request"].get("workflow", {}).get("followup_plan"),
     }
+    steps = job["request"].get("workflow", {}).get("steps")
+    if steps:
+        state["execution_steps"] = steps
+
+    async def progress(output):
+        from app.database import _session_factory
+        from app.worker import publish_progress
+
+        await publish_progress(_session_factory(), job, output)
+
+    async def skills(agent):
+        return await selected_skill(str(job["owner_id"]), agent)
+
     dsn = get_settings().database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
     async with await AsyncConnection.connect(
         dsn, autocommit=True, prepare_threshold=0, row_factory=dict_row
     ) as conn:
         saver = AsyncPostgresSaver(conn)
         await saver.setup()
-        graph = build_graph(ToolRegistry(handlers), saver)
+        graph = (
+            build_workflow_graph(
+                ToolRegistry(handlers),
+                saver,
+                progress=progress,
+                skills=skills,
+                final_attempt=job["attempt"] >= job["max_attempts"],
+            )
+            if steps
+            else build_graph(ToolRegistry(handlers), saver)
+        )
         config = thread_config(state["owner_id"], state["job_id"])
         # Re-run failed pending nodes, reuse completed checkpoints for retry idempotency.
         snapshot = await graph.aget_state(config)

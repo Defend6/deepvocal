@@ -30,6 +30,7 @@ function wav(): Buffer {
 test("real local workflow: knowledge, plan editing, feedback, skills, memory, pending upload, owner switch", async ({
   page,
 }, testInfo) => {
+  test.setTimeout(knowledgeLive ? 180000 : 90000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const identity = `e2e|${crypto.randomUUID()}`;
@@ -78,7 +79,7 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
       .locator(".current-job")
       .getByText(knowledgeOutcome).first(),
   ).toBeVisible({ timeout: knowledgeLive ? 120000 : 30000 });
-  if (corpusAvailable && !knowledgeLive) await expect(page.getByRole("heading", {name: "相关资料", exact: true})).toBeVisible();
+  await expect(page.locator(".current-job .evidence")).toHaveCount(0);
   await page
     .getByText("账户用量 · 暂无用量", { exact: true })
     .click();
@@ -171,6 +172,7 @@ test("real local workflow: knowledge, plan editing, feedback, skills, memory, pe
 });
 
 test("beginner mode delegates routing and keeps clarification, plans and pending audio usable", async ({ page }, testInfo) => {
+  test.setTimeout(knowledgeLive ? 180000 : 90000);
   const errors: string[] = [];
   const requests: Record<string, unknown>[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -188,7 +190,7 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await question.fill("你好");
   await send.click();
   const feed = page.getByRole("log", {name: "对话消息"});
-  await expect(feed).toContainText("请补充希望解决的具体问题");
+  await expect(feed).toContainText("请告诉我具体的声乐问题");
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   await question.fill("什么是音准？");
   await send.click();
@@ -239,4 +241,52 @@ test("beginner mode delegates routing and keeps clarification, plans and pending
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   await expect(page.locator(".plan-list button")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("real composite conversation runs four intents, links report to plan and reuses sources", async ({page}, testInfo) => {
+  test.setTimeout(150000);
+  const identity = `e2e|${crypto.randomUUID()}`;
+  await page.addInitScript(value => sessionStorage.setItem("dv.identity", value), identity);
+  await page.goto("/");
+  await page.getByRole("button", {name: "添加录音", exact: true}).click();
+  await page.getByLabel("附上清唱录音", {exact: true}).setInputFiles({name: "multi-synthetic.wav", mimeType: "audio/wav", buffer: wav()});
+  await expect(page.getByText("multi-synthetic.wav · 准备完成", {exact: false})).toBeVisible({timeout: 30000});
+  const received = page.waitForResponse(r => r.url().endsWith("/messages") && r.request().method() === "POST");
+  const question = page.getByLabel("说说你的问题或目标");
+  await question.fill("什么是音准？然后分析我的录音，生成个性化歌声，再制定音准和节奏练习计划，每天10分钟，共3天");
+  await question.press("Enter");
+  const admitted = await (await received).json();
+  expect(admitted.status).toBe("queued");
+  const feed = page.getByRole("log", {name: "对话消息"});
+  await expect(feed.locator(".inline-plan")).toHaveCount(1, {timeout: 120000});
+  await expect(feed).toContainText("部分完成");
+  await expect(feed).toContainText("填写歌词并确认使用授权");
+  await expect(feed.locator(".evidence")).toHaveCount(0);
+  await expect(feed.locator(".inline-plan")).toContainText("节拍与短句");
+  const headers = {"X-Debug-Identity": identity};
+  const job = await (await page.request.get(`/api/v1/jobs/${admitted.job.id}`, {headers})).json();
+  expect(job.status).toBe("SUCCEEDED");
+  expect(job.result.steps.map((step: {agent: string}) => step.agent)).toEqual(["knowledge", "assessment", "singing", "planning"]);
+  expect(job.result.steps.map((step: {status: string}) => step.status).slice(1)).toEqual(["completed", "needs_input", "completed"]);
+  const plan = await (await page.request.get(`/api/v1/plans/${job.result.plan_id}`, {headers})).json();
+  expect(plan.payload.report_id).toBe(job.result.report_id);
+  expect(plan.payload.goals).toEqual(["pitch", "rhythm"]);
+  expect(plan.payload.exercises.reduce((n: number, e: {seconds: number}) => n + e.seconds, 0)).toBe(600);
+  const before = await (await page.request.get("/api/v1/jobs", {headers})).json();
+  const sources = page.waitForResponse(r => r.url().endsWith("/messages") && r.request().method() === "POST");
+  await question.fill("请给出回答依据和来源");
+  await question.press("Enter");
+  const followup = await (await sources).json();
+  expect(followup.job.id).toBe(job.id);
+  expect(followup.show_evidence).toBe(true);
+  const after = await (await page.request.get("/api/v1/jobs", {headers})).json();
+  expect(after.length).toBe(before.length);
+  if (job.result.steps[0].result.status === "answered") {
+    await expect(feed.locator(".conversation-turn").last().locator(".evidence")).toHaveCount(1);
+    await expect(feed.locator(".conversation-turn").first().locator(".evidence")).toHaveCount(0);
+  }
+  await page.reload();
+  await expect(feed.locator(".workflow-results")).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.screenshot({path: `../../_qa/multi-live-${testInfo.project.name}.png`, fullPage: true});
 });

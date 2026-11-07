@@ -19,6 +19,7 @@ async function assistantFixture(page: Page) {
     if (path === "/v1/jobs") return reply(owner === identity ? jobs : []);
     if (path.startsWith("/v1/jobs/")) {
       const job = jobs.find(j => j.id === path.split("/")[3]);
+      if (job && path.endsWith("/cancel")) Object.assign(job, {status: "CANCELLED"});
       return job ? reply(job) : reply({detail: "not found"}, 404);
     }
     if (path === "/v1/conversations") {
@@ -33,7 +34,7 @@ async function assistantFixture(page: Page) {
       const job: Job = {id: `job-${messages.length}`, kind: "knowledge", status: "QUEUED", result: null,
         error_code: null, attempt: 0, trace_id: "test", created_at: new Date(Date.now() + messages.length).toISOString()};
       jobs.unshift(job);
-      const response = {status: "queued", revision: ++revision, job: structuredClone(job)};
+      const response = {status: "queued", revision: ++revision, job: structuredClone(job), show_evidence: body.text.includes("来源")};
       turns.push({id: `turn-${revision}`, user_text: body.text, response});
       return reply(response);
     }
@@ -69,6 +70,8 @@ test("concurrent jobs answer in their own turns, history expands and reload rest
   Object.assign(jobs[1], {status: "SUCCEEDED", result: {status: "answered", answer: "音准是演唱音高与目标音高的一致程度。[1]",
     citations: [{number: 1, title: "测试音准资料", text: "仅用于界面回归的合成资料。", url: "https://example.com/test"}]}});
   await expect(feed.locator("[data-job-id=job-1]")).toContainText("音准是演唱音高");
+  await expect(feed.locator(".evidence")).toHaveCount(0);
+  await expect(feed.locator(".answer")).not.toContainText("[1]");
   await expect(feed.locator("[data-job-id=job-2]")).not.toContainText("音准是演唱音高");
   await expect(page.locator(".current-job")).toHaveCount(0);
   await expect(page.getByText("未生成", {exact: true})).toHaveCount(0);
@@ -98,6 +101,88 @@ test("concurrent jobs answer in their own turns, history expands and reload rest
   await expect(page.locator(".job-list .history-item")).toHaveCount(0);
   expect(messages).toHaveLength(2);
   expect(errors).toEqual([]);
+});
+
+test("multiple needs show sequential progress, inline plans and prerequisites; sources are per turn", async ({page}, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const {jobs} = await assistantFixture(page);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", {value: {writeText: async (text: string) => {
+      (window as unknown as {copiedText: string}).copiedText = text;
+    }}});
+  });
+  const question = page.getByLabel("说说你的问题或目标");
+  const feed = page.getByRole("log", {name: "对话消息"});
+  await question.fill("请解释胸声，分析我的录音，然后制定音准和节奏练习计划");
+  await question.press("Enter");
+  await expect(feed.locator(".conversation-turn")).toHaveCount(1);
+  const citations = [{number: 1, title: "声乐测试资料", text: "合成资料", url: "https://example.com", license: "CC0", review_status: "approved"}];
+  const answer = {status: "answered", answer: "## 胸声是什么\n**胸声**是一种声音体验。[1]\n\n- 轻松练习\n- <script>window.bad=true</script>", citations};
+  Object.assign(jobs[0], {status: "RUNNING", result: {status: "processing", steps: [
+    {id: "knowledge", agent: "knowledge", title: "声乐解答", status: "completed", result: answer},
+    {id: "assessment", agent: "assessment", title: "录音分析", status: "running"},
+    {id: "planning", agent: "planning", title: "练习安排", status: "waiting"},
+  ]}});
+  await expect(feed.getByRole("heading", {name: "胸声是什么"})).toBeVisible();
+  await expect(feed.locator(".step-running")).toContainText("录音分析");
+  await expect(feed.locator(".step-waiting")).toContainText("练习安排");
+  await expect(feed.locator(".evidence")).toHaveCount(0);
+  await expect(feed.locator(".answer")).not.toContainText("[1]");
+  const plan = {goal: "pitch", goals: ["pitch", "rhythm"], days: 3, minutes: 10, notice: "", stop_rule: "不适时停止练习", observations: [],
+    exercises: [{title: "参考音模唱", seconds: 210, instruction: "先听再唱"}, {title: "节拍与短句", seconds: 210, instruction: "先拍再唱"}]};
+  Object.assign(jobs[0], {status: "SUCCEEDED", result: {status: "partial", steps: [
+    {id: "knowledge", agent: "knowledge", title: "声乐解答", status: "completed", result: answer},
+    {id: "assessment", agent: "assessment", title: "录音分析", status: "needs_input", message: "请上传本人的清唱录音。"},
+    {id: "planning", agent: "planning", title: "练习安排", status: "blocked", message: "需先完成本次录音分析。"},
+  ]}});
+  await expect(feed).toContainText("部分完成");
+  await expect(feed).toContainText("请上传本人的清唱录音");
+  await feed.getByRole("button", {name: "复制回答", exact: true}).click();
+  expect(await page.evaluate(() => (window as unknown as {copiedText: string}).copiedText)).not.toContain("[1]");
+  await feed.getByRole("button", {name: "编辑后重试"}).click();
+  await expect(question).toHaveValue("请解释胸声，分析我的录音，然后制定音准和节奏练习计划");
+  await question.fill("解释胸声并制定计划，请提供来源");
+  await question.press("Enter");
+  await expect(feed.locator(".conversation-turn")).toHaveCount(2);
+  Object.assign(jobs[0], {status: "SUCCEEDED", result: {status: "completed", steps: [
+    {id: "knowledge", agent: "knowledge", title: "声乐解答", status: "completed", result: answer},
+    {id: "planning", agent: "planning", title: "练习安排", status: "completed", result: {status: "planned", plan}},
+  ]}});
+  const last = feed.locator(".conversation-turn").last();
+  await expect(last.locator(".evidence")).toHaveCount(1);
+  await expect(last.locator(".answer")).toContainText("[1]");
+  await expect(last.locator(".inline-plan")).toContainText("每天 10 分钟，共 3 天");
+  await expect(last.locator(".inline-plan")).toContainText("参考音模唱");
+  await expect(last.locator(".inline-plan")).toContainText("节拍与短句");
+  await expect(feed.locator(".conversation-turn").first().locator(".evidence")).toHaveCount(0);
+  await page.reload();
+  await expect(feed.locator(".workflow-results")).toHaveCount(2);
+  await expect(feed.locator(".evidence")).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await last.scrollIntoViewIfNeeded();
+  await page.screenshot({path: `../../_qa/multi-chat-${info.project.name}.png`, fullPage: true});
+  expect(errors).toEqual([]);
+});
+
+test("cancelling a composite response remains cancelled after reload", async ({page}) => {
+  const {jobs} = await assistantFixture(page);
+  await page.getByLabel("说说你的问题或目标").fill("解释胸声并制定计划");
+  await page.getByRole("button", {name: "发送", exact: true}).click();
+  const feed = page.getByRole("log");
+  await expect(feed.locator(".conversation-turn")).toHaveCount(1);
+  Object.assign(jobs[0], {status: "RUNNING", result: {status: "processing", steps: [
+    {id: "knowledge", agent: "knowledge", title: "声乐解答", status: "running"},
+    {id: "planning", agent: "planning", title: "练习安排", status: "waiting"},
+  ]}});
+  await expect(feed.locator(".workflow-results")).toHaveCount(1);
+  await feed.getByRole("button", {name: "停止处理"}).click();
+  await expect(feed).toContainText("本次处理已取消");
+  await expect(feed.locator(".step-running, .step-waiting")).toHaveCount(0);
+  await expect(feed.locator(".step-cancelled")).toHaveCount(2);
+  await page.reload();
+  await expect(feed).toContainText("本次处理已取消");
+  await expect(feed.getByRole("button", {name: "停止处理"})).toHaveCount(0);
 });
 
 test("revision conflicts retain input and synchronize before retry; IME and multiline do not submit", async ({page}) => {

@@ -56,7 +56,11 @@ async def enqueue(
             }
         )
     try:
-        if request.kind == "singing":
+        if workflow and workflow.get("steps"):
+            # Only server-side assistant dispatch can create a workflow; each runnable step
+            # is validated again by its typed tool before execution.
+            pass
+        elif request.kind == "singing":
             from app.config import get_settings
             from app.singing import GenerationInput, available, validate_consent
 
@@ -65,7 +69,9 @@ async def enqueue(
                 if not request.input_asset_id:
                     raise HTTPException(422, "voice sample required")
                 await validate_consent(session, owner, config, request.input_asset_id)
-        if request.kind == "knowledge":
+        if workflow and workflow.get("steps"):
+            pass
+        elif request.kind == "knowledge":
             from app.knowledge.policy import KnowledgeInput
 
             KnowledgeInput.model_validate(request.input)
@@ -111,7 +117,11 @@ async def enqueue(
 
     await job_quota(session, owner)
     # The unique constraint is the concurrency barrier, not an application-only precheck.
-    if request.kind == "assessment" and request.input_asset_id is None:
+    if (
+        request.kind == "assessment"
+        and request.input_asset_id is None
+        and not (workflow and workflow.get("steps"))
+    ):
         raise HTTPException(422, "assessment requires a verified ready audio asset")
     if request.input_asset_id:
         asset = (
@@ -191,6 +201,10 @@ async def enqueue(
         await session.execute(
             text("UPDATE jobs SET timeout_seconds=600 WHERE id=:id"), {"id": str(row["id"])}
         )
+    if workflow and workflow.get("steps"):
+        await session.execute(
+            text("UPDATE jobs SET timeout_seconds=600 WHERE id=:id"), {"id": str(row["id"])}
+        )
     if commit:
         await session.commit()
     return public_job(row)
@@ -199,21 +213,24 @@ async def enqueue(
 def public_job(row) -> dict:
     return jsonable_encoder(
         {
-            key: row[key]
-            for key in (
-                "id",
-                "kind",
-                "status",
-                "input_asset_id",
-                "result",
-                "error_code",
-                "attempt",
-                "max_attempts",
-                "cancel_requested",
-                "trace_id",
-                "created_at",
-                "updated_at",
-            )
+            "show_evidence": row["request"].get("workflow", {}).get("show_evidence", False),
+            **{
+                key: row[key]
+                for key in (
+                    "id",
+                    "kind",
+                    "status",
+                    "input_asset_id",
+                    "result",
+                    "error_code",
+                    "attempt",
+                    "max_attempts",
+                    "cancel_requested",
+                    "trace_id",
+                    "created_at",
+                    "updated_at",
+                )
+            },
         }
     )
 

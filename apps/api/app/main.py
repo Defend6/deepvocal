@@ -141,6 +141,7 @@ def decide_route(request: RouteRequest) -> RouteResponse:
         confidence=decision.confidence,
         tool_allowlist=list(decision.tool_allowlist),
         requires_confirmation=decision.requires_confirmation,
+        steps=[step.as_dict() for step in decision.steps],
     )
 
 

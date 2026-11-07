@@ -41,6 +41,8 @@ export type Result = {
   pitch_contour?: { time: number; hz: number | null }[];
   reference_contour?: {start: number; end: number; hz: number}[];
   asset_id?: string;
+  plan?: Plan["payload"];
+  steps?: {id: string; agent: Agent; title: string; status: string; message?: string; result?: Result}[];
 };
 export type Job = {
   id: string;
@@ -52,6 +54,7 @@ export type Job = {
   attempt: number;
   trace_id: string;
   updated_at?: string;
+  show_evidence?: boolean;
 };
 export type Exercise = { title: string; seconds: number; instruction: string };
 export type Plan = {
@@ -59,6 +62,7 @@ export type Plan = {
   version: number;
   payload: {
     goal: string;
+    goals?: string[];
     days: number;
     minutes: number;
     exercises: Exercise[];
@@ -83,6 +87,6 @@ export type ConversationTurn = {
   id?: string;
   created_at?: string;
   user_text: string;
-  response: {status?: string; message?: string; job?: Job};
+  response: {status?: string; message?: string; job?: Job; show_evidence?: boolean};
 };
 export type ConversationSummary = {id: string; title: string; revision: number};

@@ -10,6 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 
+from app.agents.router import RuleRouter, wants_evidence
 from app.assistant import AssistantRequest, dispatch
 from app.identity import Session, User
 from app.jobs import public_job
@@ -141,7 +142,12 @@ def resolve_turn(message, context):
             pending = re.sub(r"[0-9零一二两三四五六七八九十]+\s*天", "", pending)
         return pending + "；补充：" + message
     if context.get("last_text") and re.match(r"^(那|这个|刚才|再解释|详细说明|举个例子)", message):
-        return context["last_text"] + "；追问：" + message
+        previous = context["last_text"]
+        # Explaining a previous answer must not re-submit its audio analysis or plan.
+        knowledge = [
+            step.text for step in RuleRouter().route(previous).steps if step.agent == "knowledge"
+        ]
+        return ("；".join(knowledge) if knowledge else previous) + "；追问：" + message
     return message
 
 
@@ -176,20 +182,61 @@ async def post_turn(conversation_id: UUID, body: TurnCreate, user: User, session
     if not asset and (context.get("pending_text") or "录音" in resolved):
         asset = context.get("asset_id")
     turn_key = hashlib.sha256(f"{conversation_id}:{body.idempotency_key}".encode()).hexdigest()
-    response = await dispatch(
-        AssistantRequest(text=resolved, input_asset_id=asset, idempotency_key=f"turn:{turn_key}"),
-        user,
-        session,
-        commit=False,
-        report_job_id=context.get("last_assessment_job_id"),
+    sources_only = wants_evidence(body.text) and bool(
+        re.fullmatch(
+            r"[请麻烦你把给我提供出示展示列出附上说明一下看看这条上述刚才的回答相关知识依据来源出处参考资料文献引用证据是什么呢吗和、，。！？?!\s]+",
+            body.text,
+        )
+    )
+    source_job = None
+    if sources_only and context.get("last_knowledge_job_id"):
+        source_job = (
+            (
+                await session.execute(
+                    text("SELECT * FROM jobs WHERE id=:id AND owner_id=:owner"),
+                    {"id": context["last_knowledge_job_id"], "owner": user["id"]},
+                )
+            )
+            .mappings()
+            .first()
+        )
+    if sources_only:
+        response = (
+            {"status": "queued", "agent": "knowledge", "job": public_job(source_job)}
+            if source_job
+            else {
+                "status": "clarify",
+                "message": "请先提出一个声乐问题，我会在回答后提供对应资料来源。",
+            }
+        )
+    else:
+        response = await dispatch(
+            AssistantRequest(
+                text=resolved, input_asset_id=asset, idempotency_key=f"turn:{turn_key}"
+            ),
+            user,
+            session,
+            commit=False,
+            report_job_id=context.get("last_assessment_job_id"),
+        )
+    response["show_evidence"] = wants_evidence(body.text)
+    agents = (
+        {step.agent for step in RuleRouter().route(resolved).steps} if not sources_only else set()
     )
     context = {
-        "last_text": resolved,
-        "asset_id": str(asset) if asset else None,
-        "pending_text": resolved if response["status"] in {"clarify", "blocked"} else "",
+        "last_text": context.get("last_text", "") if sources_only else resolved,
+        "asset_id": context.get("asset_id") if sources_only else str(asset) if asset else None,
+        "pending_text": context.get("pending_text", "")
+        if sources_only
+        else response.get(
+            "pending_text", resolved if response["status"] in {"clarify", "blocked"} else ""
+        ),
         "last_assessment_job_id": response.get("job", {}).get("id")
-        if response.get("agent") == "assessment"
+        if "assessment" in agents and response.get("job")
         else context.get("last_assessment_job_id"),
+        "last_knowledge_job_id": response.get("job", {}).get("id")
+        if "knowledge" in agents and response.get("job") and not sources_only
+        else context.get("last_knowledge_job_id"),
         "summary": {
             "turns": body.revision + 1,
             "last_intent": response.get("agent"),

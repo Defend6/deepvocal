@@ -359,6 +359,7 @@ function App() {
       job?: Job;
       agent?: Agent;
       revision?: number;
+      show_evidence?: boolean;
     }>(identity, automatic && intelligent && thread ? `/v1/conversations/${thread.id}/messages` : "/v1/assistant", {
       method: "POST",
       body: JSON.stringify(automatic && intelligent && thread
@@ -626,7 +627,7 @@ function App() {
             </button>
           ))}
           <div id="capability-note" className="sidebar-note">
-            <span className="dot" /> 一次只做一件对的事
+            <span className="dot" /> 多个需求，一起交给我
             <br />
             <small>
               明确意图，再交给对应 Agent。
@@ -928,7 +929,7 @@ function App() {
                 {current.error_code && (
                   <p className="error">{current.error_code}</p>
                 )}
-                {current.result && <ResultView identity={identity} result={current.result} plan={plans.find(p => p.id === current.result?.plan_id)} onOpenPlan={openPlan} />}
+                {current.result && <ResultView identity={identity} result={current.result} plans={plans} jobStatus={current.status} showEvidence={current.show_evidence} plan={plans.find(p => p.id === current.result?.plan_id)} onOpenPlan={openPlan} />}
               </section>
             )}
             {(intelligent || selected === "planning") && (
@@ -1158,13 +1159,13 @@ function App() {
                   <button className="history-item" aria-expanded={expandedJob === job.id}
                     aria-controls={`history-result-${job.id}`}
                     onClick={() => {setExpandedJob(previous => previous === job.id ? null : job.id);}}>
-                    <span>{agents.find(agent => agent.id === job.kind)?.label ?? "处理记录"}
+                    <span>{job.result?.steps ? "综合处理" : agents.find(agent => agent.id === job.kind)?.label ?? "处理记录"}
                       <small>{new Date(job.created_at).toLocaleString()}</small></span>
                     <span className="history-state"><span className={`badge ${job.status === "FAILED" ? "bad" : ""}`}>{jobLabel(job)}</span><ChevronDown size={16} /></span>
                   </button>
                   {expandedJob === job.id && <div id={`history-result-${job.id}`} className="history-result" role="region" aria-label="任务结果">
                     {!job.result && <p>{job.status === "FAILED" ? "这次处理未完成，请稍后重试。" : job.status === "CANCELLED" ? "本次处理已取消。" : job.status === "SUCCEEDED" ? "本次处理已结束，但结果暂时无法读取，请刷新后重试。" : "正在处理，结果会自动更新。"}</p>}
-                    {job.result && <ResultView identity={identity} result={job.result} plan={plans.find(p => p.id === job.result?.plan_id)} onOpenPlan={openPlan} />}
+                    {job.result && <ResultView identity={identity} result={job.result} plans={plans} jobStatus={job.status} showEvidence={job.show_evidence} plan={plans.find(p => p.id === job.result?.plan_id)} onOpenPlan={openPlan} />}
                     {!done(job) && <button className="secondary" disabled={busy} onClick={() => void perform(() => cancelJob(job))}>停止处理</button>}
                   </div>}
                 </div>

@@ -22,6 +22,7 @@ class RouteResponse(BaseModel):
     confidence: float = Field(ge=0, le=1)
     tool_allowlist: list[str]
     requires_confirmation: bool = False
+    steps: list[dict] = Field(default_factory=list)
 
 
 class CapabilityResponse(BaseModel):

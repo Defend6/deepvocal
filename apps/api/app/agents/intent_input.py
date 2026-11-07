@@ -38,6 +38,11 @@ def planning_input(text: str) -> tuple[dict, str | None]:
         re.IGNORECASE,
     ):
         return {}, "请给出确定的每天分钟数和计划天数，例如每天 10 分钟、共 3 天。"
+    if any(word in text for word in ("高音", "低音", "换声", "混声", "颤音")):
+        return (
+            {},
+            "当前练习模板支持基础、音准、节奏和长音稳定。高低音、换声等专项需要教师指导，请明确本次可安排的目标。",
+        )
     targets = [
         goal
         for goal, words in (
@@ -47,18 +52,10 @@ def planning_input(text: str) -> tuple[dict, str | None]:
         )
         if any(word in text for word in words)
     ]
-    if len(targets) > 1:
-        return (
-            {},
-            "请先描述一个主要练习目标：基础、音准、节奏或长音稳定，完成后可以再安排下一个目标。",
-        )
     if targets:
         values["goal"] = targets[0]
-    elif any(word in text for word in ("高音", "低音", "换声", "混声", "颤音")):
-        return (
-            {},
-            "当前练习模板支持基础、音准、节奏和长音稳定。请说明先从哪个目标开始，其他专项需要教师指导。",
-        )
+        if len(targets) > 1:
+            values["goals"] = targets
     if any(word in text for word in ("报告", "上次", "之前")):
         return (
             {},

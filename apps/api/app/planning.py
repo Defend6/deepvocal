@@ -10,6 +10,9 @@ class PlanningInput(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     text: str = Field(default="", max_length=4000)
     goal: Literal["foundation", "pitch", "rhythm", "stability"] = "foundation"
+    goals: list[Literal["foundation", "pitch", "rhythm", "stability"]] = Field(
+        default_factory=list, max_length=4
+    )
     minutes: int = Field(default=10, ge=5, le=30)
     days: int = Field(default=3, ge=1, le=7)
     report_id: UUID | None = None
@@ -62,7 +65,12 @@ def create_plan(
     history = history or []
     adaptation = []
     config = config.model_copy(deep=True)
-    if report and report.get("quality") == "usable" and config.goal == "foundation":
+    if (
+        report
+        and report.get("quality") == "usable"
+        and config.goal == "foundation"
+        and not config.goals
+    ):
         candidates = {
             key: metric["value"]
             for key, metric in report.get("dimensions", {}).items()
@@ -92,18 +100,14 @@ def create_plan(
             "舒适音区轻松持续3至5秒，观察跟踪覆盖；不憋气，不以颤音判定错误。",
         ),
     }
-    title, instruction = instructions[config.goal]
+    targets = list(dict.fromkeys(config.goals or [config.goal]))
+    config.goal = targets[0]
     total = config.minutes * 60
     exercises = [
         {
             "title": "准备与状态检查",
             "seconds": 60,
             "instruction": "确认无疼痛、明显疲劳；舒适站坐，自然呼吸。",
-        },
-        {
-            "title": title,
-            "seconds": total - 180,
-            "instruction": instruction + " 每小组之间充分停顿，可随时提前结束。",
         },
         {"title": "休息", "seconds": 60, "instruction": "停止发声，自然休息；出现不适不再继续。"},
         {
@@ -112,16 +116,25 @@ def create_plan(
             "instruction": "记录实际练习时长、主观难度和不适；无需完成额定时长。",
         },
     ]
-    core = exercises.pop(1)
-    remaining = core["seconds"]
-    group = 1
-    while remaining > 0:
-        seconds = min(600, remaining)
-        exercises.insert(
-            group, {**core, "seconds": seconds, "title": f"{core['title']} · 第{group}组"}
-        )
-        group += 1
-        remaining -= seconds
+    # All requested goals share the daily budget, including warm-up and rest.
+    blocks = []
+    budget, remainder = divmod(total - 180, len(targets))
+    for index, target in enumerate(targets):
+        title, instruction = instructions[target]
+        remaining = budget + (1 if index < remainder else 0)
+        group = 1
+        while remaining:
+            seconds = min(600, remaining)
+            blocks.append(
+                {
+                    "title": f"{title} · 第{group}组",
+                    "seconds": seconds,
+                    "instruction": instruction + " 每小组之间充分停顿，可随时提前结束。",
+                }
+            )
+            group += 1
+            remaining -= seconds
+    exercises[1:1] = blocks
     observations = []
     if report:
         observations = [f"报告任务：{report.get('profile')}；质量：{report.get('quality')}。"]
@@ -131,6 +144,7 @@ def create_plan(
         "status": "planned",
         "plan": {
             "goal": config.goal,
+            "goals": targets,
             "days": config.days,
             "minutes": config.minutes,
             "exercises": exercises,
@@ -141,6 +155,7 @@ def create_plan(
                 {
                     "day": day,
                     "focus": config.goal,
+                    "goals": targets,
                     "minutes": config.minutes,
                     "instruction": "完成后记录难度与状态，再决定下一次安排。",
                 }

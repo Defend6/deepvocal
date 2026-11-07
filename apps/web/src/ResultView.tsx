@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { request } from "./api";
-import { human } from "./presentation";
+import { answerText, human } from "./presentation";
+import { AnswerText } from "./AnswerText";
 import type { Citation, Result, Plan } from "./types";
 
 function PitchChart({points, reference = []}: {points: {time: number; hz: number | null}[];
@@ -54,12 +55,27 @@ function Evidence({
   );
 }
 
-export function ResultView({ result, identity, plan, onOpenPlan }: { result: Result; identity: string; plan?: Plan; onOpenPlan?: (plan: Plan) => void }) {
+export function ResultView({ result, identity, plan, plans = [], showEvidence = false, jobStatus, onOpenPlan }: {
+  result: Result; identity: string; plan?: Plan; plans?: Plan[]; showEvidence?: boolean; jobStatus?: string; onOpenPlan?: (plan: Plan) => void
+}) {
+  if (result.steps) return <div className="workflow-results" aria-label="本次处理进度与结果">
+    {result.steps.map((step, index) => {
+      const interrupted = ["FAILED", "CANCELLED"].includes(jobStatus ?? "") && ["running", "waiting"].includes(step.status);
+      const status = interrupted ? "cancelled" : step.status;
+      return <section className={`workflow-step step-${status}`} key={step.id}>
+      <div className="workflow-step-heading"><span className="step-number">{index + 1}</span><h4>{step.title}</h4>
+        <span className="step-status">{({completed: "已完成", running: "正在处理", waiting: "等待处理", needs_input: "待补充", blocked: "等待前置结果", failed: "暂未完成", cancelled: "已停止"} as Record<string, string>)[status] ?? "待处理"}</span></div>
+      {step.message && <p className="step-guidance">{step.message}</p>}
+      {step.result && <ResultView identity={identity} result={step.result} plans={plans}
+        plan={plans.find(p => p.id === step.result?.plan_id)} showEvidence={showEvidence} onOpenPlan={onOpenPlan} />}
+    </section>;})}
+  </div>;
+  const schedule = plan?.payload ?? result.plan;
   return (
     <div className="result-view">
       {result.reason && <p className="notice">{human(result.reason)}</p>}
       {result.message && <p>{result.message}</p>}
-      {result.answer && <p className="answer">{result.answer}</p>}
+      {result.answer && <AnswerText text={answerText(result, showEvidence)} />}
       {result.asset_id && <GeneratedAudio key={`${identity}:${result.asset_id}`} assetId={result.asset_id} identity={identity} />}
       {result.total && (
         <>
@@ -115,20 +131,21 @@ export function ResultView({ result, identity, plan, onOpenPlan }: { result: Res
           )}
         </>
       )}
-      {!!result.citations?.length && <Evidence items={result.citations} />}
-      {!!result.evidence_preview?.length && (
+      {showEvidence && !!result.citations?.length && <Evidence items={result.citations} />}
+      {showEvidence && !!result.evidence_preview?.length && (
         <Evidence items={result.evidence_preview} preview />
       )}
-      {result.plan_id && (
+      {(result.plan_id || schedule) && (
         <div className="inline-plan">
           <h4>你的练习安排</h4>
-          {plan ? <>
-            <p>每天 {plan.payload.minutes} 分钟，共 {plan.payload.days} 天。从舒适的练习强度开始。</p>
-            <ol>{plan.payload.exercises.map((exercise, i) => <li key={i}>
+          {schedule ? <>
+            <p>每天 {schedule.minutes} 分钟，共 {schedule.days} 天。从舒适的练习强度开始。</p>
+            <ol>{schedule.exercises.map((exercise, i) => <li key={i}>
               <strong>{exercise.title}</strong><span>{Math.round(exercise.seconds / 60 * 10) / 10} 分钟</span>
               <p>{exercise.instruction}</p>
             </li>)}</ol>
-            {onOpenPlan && <button className="secondary" onClick={() => onOpenPlan(plan)}>调整计划与记录反馈</button>}
+            <p className="muted">{schedule.stop_rule}</p>
+            {plan && onOpenPlan && <button className="secondary" onClick={() => onOpenPlan(plan)}>调整计划与记录反馈</button>}
           </> : <p>计划已保存，可在下方「我的计划」中查看、编辑并记录反馈。</p>}
         </div>
       )}

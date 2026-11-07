@@ -17,6 +17,24 @@ TABLES = {"reports": "assessment_reports", "plans": "practice_plans"}
 
 async def materialize(session, job: dict, result: dict) -> dict:
     """Called in the fenced job finish transaction; cancelled attempts cannot publish artifacts."""
+    if result.get("steps"):
+        steps = []
+        artifacts = {}
+        for step in result["steps"]:
+            if step["status"] == "completed":
+                output = step["result"]
+                if step["agent"] == "planning" and artifacts.get("report_id"):
+                    output = {
+                        **output,
+                        "plan": {**output["plan"], "report_id": artifacts["report_id"]},
+                    }
+                output = await materialize(session, {**job, "kind": step["agent"]}, output)
+                artifacts.update(
+                    {key: output[key] for key in ("report_id", "plan_id") if output.get(key)}
+                )
+                step = {**step, "result": output}
+            steps.append(step)
+        return {**result, "steps": steps, **artifacts}
     kind = job["kind"]
     if kind == "assessment" and result.get("status") == "measured":
         table, key, payload = "assessment_reports", "report_id", result
@@ -111,6 +129,9 @@ async def edit_plan(artifact_id: UUID, request: PlanEdit, user: User, session: S
     payload = {
         **row["payload"],
         **request.model_dump(exclude={"version"}),
+        "goals": row["payload"].get("goals", [request.goal])
+        if request.goal == row["payload"]["goal"]
+        else [request.goal],
         "minutes": sum(item.seconds for item in request.exercises) / 60,
     }
     updated = (
@@ -226,6 +247,7 @@ async def adapt_plan(artifact_id: UUID, user: User, session: Session):
     result = create_plan(
         PlanningInput(
             goal=row["payload"]["goal"],
+            goals=row["payload"].get("goals", []),
             minutes=max(5, min(30, int(row["payload"]["minutes"]))),
             days=row["payload"]["days"],
             report_id=report_id,

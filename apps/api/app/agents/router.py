@@ -1,5 +1,42 @@
+"""Deterministic intent decomposition and dependency-aware routing, without tool execution."""
+
 import re
 from dataclasses import dataclass
+
+TOOLS = {
+    "knowledge": ("knowledge.retrieve",),
+    "assessment": ("audio.inspect", "assessment.submit"),
+    "planning": ("reports.read", "plans.create"),
+    "singing": ("singing.capabilities",),
+}
+ACTIONS = {
+    "knowledge.ask": "knowledge",
+    "assessment.submit": "assessment",
+    "planning.create": "planning",
+    "singing.generate": "singing",
+}
+TITLES = {
+    "knowledge": "声乐解答",
+    "assessment": "录音分析",
+    "planning": "练习安排",
+    "singing": "歌声生成",
+}
+
+
+@dataclass(frozen=True)
+class IntentStep:
+    agent: str
+    text: str
+    depends_on: tuple[str, ...] = ()
+
+    def as_dict(self):
+        return {
+            "id": self.agent,
+            "agent": self.agent,
+            "text": self.text,
+            "title": TITLES[self.agent],
+            "depends_on": list(self.depends_on),
+        }
 
 
 @dataclass(frozen=True)
@@ -9,92 +46,133 @@ class RouteDecision:
     confidence: float
     tool_allowlist: tuple[str, ...]
     requires_confirmation: bool = False
+    steps: tuple[IntentStep, ...] = ()
+
+
+def wants_evidence(message: str) -> bool:
+    """Source display is opt-in for this request, independent from evidence validation."""
+    return bool(
+        re.search(
+            r"来源|出处|参考文献|回答依据|参考资料|引用|证据|依据(?:是什么|呢|吗)|有.{0,3}依据|(?:提供|给出|附上|展示|说明|列出).{0,6}依据",
+            message,
+        )
+    ) and not bool(
+        re.search(
+            r"(?:不需要|不要|不用|无需|不必|别).{0,8}(?:来源|出处|文献|依据|资料|引用|证据)",
+            message,
+        )
+    )
 
 
 class RuleRouter:
-    """Deterministic first-pass router; model classification is an optional later stage."""
+    @staticmethod
+    def _intent(clause: str) -> str | None:
+        value = clause.strip().lower()
+        if not value:
+            return None
+        if re.search(
+            r"(?:不要|不用|无需|不必|别)(?:再|给我|帮我|进行|做)?(?:分析|诊断|测评|制定|安排|生成)",
+            value,
+        ):
+            return None
+        # A question about a tool or workflow is not permission to run that tool.
+        concept = bool(re.search(r"什么是|原理|区别|含义|是什么意思", value))
+        reference_question = bool(
+            re.search(r"(?:需要|要什么|哪些).{0,8}(?:参考|信息|材料|资料)", value)
+        )
+        if concept or reference_question:
+            return "knowledge"
+        if re.search(r"生成.{0,12}(?:歌声|演唱|清唱)|歌声生成|个性化歌声|唱出来", value):
+            return "singing"
+        if re.search(
+            r"(?:制定|安排|规划|设计).{0,12}(?:练习|训练|计划)|练习安排|训练安排|计划", value
+        ):
+            return "planning"
+        audio = re.search(r"录音|音频|清唱|全曲|跑调|音准|音高|演唱", value)
+        if (audio and re.search(r"分析|诊断|测评|评估|检测|听听", value)) or re.search(
+            r"我唱得怎么样|帮我听|看看有没有跑调|评价我的演唱", value
+        ):
+            return "assessment"
+        if re.search(
+            r"为什么|怎么|如何|解释|介绍|说明|区别|共鸣|气息|声区|音准|音高|高音|低音|胸声|头声|混声|换声|跑调|发声|练习方法",
+            value,
+        ):
+            return "knowledge"
+        if re.search(r"这段录音|我的录音|这段音频", value):
+            return "assessment"
+        return None
 
     def route(self, text: str, explicit_action: str | None = None) -> RouteDecision:
-        normalized = text.strip().lower()
-        explicit = {
-            "knowledge.ask": ("knowledge", ("knowledge.retrieve",)),
-            "assessment.submit": ("assessment", ("audio.inspect", "assessment.submit")),
-            "planning.create": ("planning", ("reports.read", "plans.create")),
-            "singing.generate": ("singing", ("singing.capabilities",)),
-        }
         if explicit_action:
-            if explicit_action not in explicit:
+            agent = ACTIONS.get(explicit_action)
+            if agent is None:
                 return RouteDecision("clarify", "unknown explicit action", 0.0, ())
-            agent, tools = explicit[explicit_action]
-            return RouteDecision(agent, "explicit action", 1.0, tools, agent == "singing")
-        singing = bool(re.search(r"生成.{0,12}(?:歌声|演唱|清唱)", normalized)) or any(
-            k in normalized
-            for k in (
-                "生成歌声",
-                "生成个性化歌声",
-                "个性化歌声",
-                "歌声生成",
-                "唱出来",
-            )
-        )
-        planning = bool(
-            re.search(r"(?:制定|安排|规划|设计).{0,12}(?:练习|训练)", normalized)
-        ) or any(k in normalized for k in ("计划", "练习安排", "安排练习", "训练安排"))
-        assessment = any(
-            k in normalized for k in ("分析", "诊断", "测评", "评估", "检测", "听听")
-        ) and any(k in normalized for k in ("录音", "音频", "清唱", "全曲", "跑调", "音准", "音高"))
-        assessment = assessment or any(
-            k in normalized for k in ("我唱得怎么样", "帮我听", "看看有没有跑调", "评价我的演唱")
-        )
-        # A bare audio attachment description can request analysis; a theory question cannot.
-        theory = any(k in normalized for k in ("什么是", "为什么", "原理", "区别", "含义")) or bool(
-            re.search(r"(?:需要|要什么|哪些).{0,8}(?:参考|信息|材料|资料)", normalized)
-        )
-        if theory and not any(k in normalized for k in ("帮我", "请分析", "请制定", "并", "然后")):
-            return RouteDecision("knowledge", "vocal theory question", 0.9, ("knowledge.retrieve",))
-        if assessment and planning and not singing:
             return RouteDecision(
-                "assessment",
-                "assessment followed by planning",
-                0.9,
-                ("audio.inspect", "assessment.submit"),
+                agent,
+                "explicit action",
+                1.0,
+                TOOLS[agent],
+                agent == "singing",
+                (IntentStep(agent, text),),
             )
-        if sum((singing, planning, assessment)) > 1:
-            return RouteDecision("clarify", "multiple actionable intents", 0.4, ())
-        if singing:
-            return RouteDecision(
-                "singing", "singing generation intent", 0.88, ("singing.capabilities",), True
-            )
-        if planning:
-            return RouteDecision(
-                "planning", "practice planning intent", 0.90, ("reports.read", "plans.create")
-            )
-        if assessment or (
-            not theory and any(k in normalized for k in ("这段录音", "我的录音", "这段音频"))
+        # Preserve plan constraints and goal lists; group related subquestions so each
+        # agent runs once per request, with bounded and auditable tool calls.
+        clauses = re.split(
+            r"[，,。；;！？?!\n]+|(?:然后|接着|之后|同时|另外|以及|并且|并|再|和|、|还想|也想|还要|也要|顺便|后)"
+            r"(?=(?:请|帮我|给我|为我|解释|介绍|说明|分析|诊断|测评|评估|制定|安排|规划|设计|生成|唱|提供|给出|练习|如何|怎么|讲解))",
+            text,
+        )
+        grouped: dict[str, list[str]] = {}
+        previous = None
+        pending = []
+        for clause in clauses:
+            clause = clause.strip()
+            if not clause:
+                continue
+            if re.search(
+                r"(?:不要|不用|无需|不必|别)(?:再|给我|帮我|进行|做)?(?:分析|诊断|测评|制定|安排|生成)",
+                clause,
+            ):
+                continue
+            agent = self._intent(clause)
+            if agent:
+                grouped.setdefault(agent, []).extend([*pending, clause])
+                pending = []
+                previous = agent
+            elif previous:
+                grouped[previous].append(clause)
+            else:
+                pending.append(clause)
+        if not grouped:
+            return RouteDecision("clarify", "intent confidence is insufficient", 0.35, ())
+        order = list(grouped)
+        if (
+            "assessment" in order
+            and "planning" in order
+            and order.index("planning") < order.index("assessment")
         ):
-            return RouteDecision(
-                "assessment",
-                "audio or assessment intent",
-                0.92,
-                ("audio.inspect", "assessment.submit"),
+            order.remove("assessment")
+            order.insert(order.index("planning"), "assessment")
+        steps = tuple(
+            IntentStep(
+                agent,
+                "，".join(grouped[agent]),
+                ("assessment",) if agent == "planning" and "assessment" in grouped else (),
             )
-        if any(
-            k in normalized
-            for k in (
-                "什么是",
-                "为什么",
-                "怎么发声",
-                "如何",
-                "区别",
-                "共鸣",
-                "气息",
-                "声区",
-                "音准",
-                "音高",
-                "跑调",
-                "发声",
-                "练习方法",
-            )
-        ):
-            return RouteDecision("knowledge", "vocal theory intent", 0.90, ("knowledge.retrieve",))
-        return RouteDecision("clarify", "intent confidence is insufficient", 0.35, ())
+            for agent in order
+        )
+        first = steps[0].agent
+        reasons = {
+            "knowledge": "vocal theory intent",
+            "assessment": "audio or assessment intent",
+            "planning": "practice planning intent",
+            "singing": "singing generation intent",
+        }
+        return RouteDecision(
+            first,
+            "structured multi-intent workflow" if len(steps) > 1 else reasons[first],
+            0.9,
+            TOOLS[first],
+            "singing" in grouped,
+            steps,
+        )

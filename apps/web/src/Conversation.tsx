@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, Check, Copy, MessageCircle, Plus, RotateCcw, Sparkles, X } from "lucide-react";
 import type { ConversationSummary, ConversationTurn, Job, Plan } from "./types";
-import { done, jobIntroduction, jobLabel } from "./presentation";
+import { copyResult, done, jobIntroduction, jobLabel } from "./presentation";
 import { ResultView } from "./ResultView";
 
 type Props = {
@@ -32,7 +32,7 @@ export function Conversation(props: Props) {
   const [away, setAway] = useState(false);
   const signature = turns.map(t => {
     const job = jobs.find(j => j.id === t.response.job?.id) ?? t.response.job;
-    return `${job?.id}:${job?.status}:${job?.result?.status}`;
+    return `${job?.id}:${job?.status}:${job?.result?.status}:${job?.result?.steps?.map(s => `${s.id}:${s.status}`).join(",")}`;
   }).join("|");
   useEffect(() => {
     follow.current = true;
@@ -71,12 +71,14 @@ export function Conversation(props: Props) {
       onScroll={() => {const el = viewport.current!; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90; setAway(!follow.current);}}>
       {!turns.length && !sending && <div className="conversation-welcome">
         <span className="welcome-symbol"><Sparkles size={28} /></span><h3>今天，从你的声音开始。</h3>
-        <p>聊聊声乐问题，安排练习，或让我听一段录音。<br />不用选择处理方式，直接告诉我就好。</p>
+        <p>聊聊声乐问题，安排练习，或让我听一段录音。<br />多个需求也可以一起说，我会依次帮你处理。</p>
       </div>}
       {turns.map((turn, i) => {
         const job = jobs.find(j => j.id === turn.response.job?.id) ?? turn.response.job;
         const introduction = job ? jobIntroduction(job) : turn.response.message;
         const negative = job && (job.status === "FAILED" || ["refused", "disabled", "unavailable"].includes(job.result?.status ?? ""));
+        const showEvidence = turn.response.show_evidence ?? job?.show_evidence ?? false;
+        const copy = job?.result ? copyResult(job.result, showEvidence) : "";
         return <div className="conversation-turn" key={turn.id ?? `${i}:${turn.user_text}`} data-job-id={job?.id}>
           <div className="user-message"><span className="message-label">你</span><p>{turn.user_text}</p></div>
           <article className="assistant-message" aria-label="助手回复">
@@ -84,12 +86,12 @@ export function Conversation(props: Props) {
               <div className="message-meta"><strong>DeepVocal</strong>{job && <span className={`message-state ${!done(job) ? "working" : ""}`}>{!done(job) && <i />}{jobLabel(job)}</span>}</div>
               {introduction && <p className={negative ? "answer-explanation" : "assistant-introduction"}>{introduction}</p>}
               {job?.result && <ResultView identity={identity} result={{...job.result, reason: undefined}}
-                plan={plans.find(p => p.id === job.result?.plan_id)} onOpenPlan={props.onOpenPlan} />}
+                plan={plans.find(p => p.id === job.result?.plan_id)} plans={plans} jobStatus={job.status} showEvidence={showEvidence} onOpenPlan={props.onOpenPlan} />}
               <div className="message-actions">
                 {job && !done(job) && <button className="text-button" disabled={busy} onClick={() => props.onCancel(job)}>停止处理</button>}
-                {negative && <button className="text-button" disabled={busy} onClick={() => props.onRetry(turn.user_text)}><RotateCcw size={13} /> 编辑后重试</button>}
-                {job?.result?.answer && <button className="text-button" onClick={() => {
-                  void navigator.clipboard.writeText(job.result!.answer!).then(() => {setCopied(i); setCopyError("");})
+                {(negative || ["partial", "needs_input"].includes(job?.result?.status ?? "")) && <button className="text-button" disabled={busy} onClick={() => props.onRetry(turn.user_text)}><RotateCcw size={13} /> 编辑后重试</button>}
+                {copy && <button className="text-button" onClick={() => {
+                  void navigator.clipboard.writeText(copy).then(() => {setCopied(i); setCopyError("");})
                     .catch(() => setCopyError("无法自动复制，请选择回答文字后复制。"));
                 }}>{copied === i ? <Check size={13} /> : <Copy size={13} />}{copied === i ? "已复制" : "复制回答"}</button>}
               </div>
