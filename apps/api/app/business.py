@@ -18,6 +18,26 @@ async def knowledge_tool(state: dict, claim_context=None) -> dict:
     ).answer(state["text"], state.get("skill_context"))
 
 
+async def read_report_tool(state: dict) -> dict:
+    """Read a dependency result or an explicitly requested report under owner scope."""
+    report = state.get("measurement_report")
+    if isinstance(report, dict):
+        return {"status": "observed", "report": report}
+    report_id = (state.get("input") or {}).get("report_id")
+    if not report_id:
+        return {"status": "needs_input", "message": "没有可用于制定练习计划的测评报告。"}
+    from app.database import _session_factory
+
+    async with _session_factory()() as session:
+        report = await session.scalar(
+            text("SELECT payload FROM assessment_reports WHERE id=:id AND owner_id=:owner"),
+            {"id": str(report_id), "owner": state["owner_id"]},
+        )
+    if not isinstance(report, dict):
+        return {"status": "needs_input", "message": "没有找到可用于制定练习计划的测评报告。"}
+    return {"status": "observed", "report": report}
+
+
 async def planning_tool(state: dict) -> dict:
     from app.database import _session_factory
     from app.planning import PlanningInput, create_plan

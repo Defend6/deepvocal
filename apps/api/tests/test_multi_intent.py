@@ -98,6 +98,10 @@ def test_sequential_workflow_hands_measurement_to_plan_and_preserves_other_resul
             calls.append("assessment")
             return {"status": "measured", "quality": "usable"}
 
+        async def read_report(s):
+            calls.append("reports.read")
+            return {"status": "observed", "report": s["measurement_report"]}
+
         async def planning(s):
             calls.append("planning")
             assert s["measurement_report"]["quality"] == "usable"
@@ -115,6 +119,7 @@ def test_sequential_workflow_hands_measurement_to_plan_and_preserves_other_resul
                 {
                     "knowledge.retrieve": knowledge,
                     "assessment.submit": assessment,
+                    "reports.read": read_report,
                     "plans.create": planning,
                 }
             ),
@@ -123,7 +128,9 @@ def test_sequential_workflow_hands_measurement_to_plan_and_preserves_other_resul
             skills=skills,
         )
         result = await graph.ainvoke(state, thread_config("owner", "job"))
-        assert calls == ["knowledge", "assessment", "planning"]
+        assert calls == ["knowledge", "assessment", "reports.read", "planning"]
+        assert result["execution_plan"]["version"] == 1
+        assert result["execution_plan"]["steps"][2]["actions"] == ["reports.read", "plans.create"]
         assert result["output"]["status"] == "completed"
         assert len(result["output"]["steps"]) == 3
         assert progress[1]["steps"][0]["result"]["answer"] == "answer [1]"
