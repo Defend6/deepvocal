@@ -2,7 +2,6 @@
 
 import asyncio
 import base64
-import hashlib
 import hmac
 import json
 import os
@@ -19,6 +18,7 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "apps/api"))
 from app.process_control import terminate_tree
+from app.singing_idempotency import ActiveClaimRegistry, bridge_request_fingerprint
 
 config = {**dotenv_values(ROOT / ".env"), **os.environ}
 TOKEN = config.get("SINGING_SERVICE_TOKEN", "")
@@ -28,13 +28,14 @@ if len(TOKEN) < 32:
     )
 app = FastAPI(docs_url=None, redoc_url=None)
 gate = asyncio.Lock()
-active = {}
+active = ActiveClaimRegistry()
 RUN_ROOT = ROOT / "runtime/singing-jobs"
 RUN_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 class Generation(BaseModel):
     job_id: UUID
+    claim_id: UUID
     owner_id: UUID
     reference_audio_base64: str = Field(max_length=140000000)
     lyrics: str = Field(min_length=1, max_length=2000)
@@ -70,7 +71,7 @@ async def generate(body: Generation, request: Request):
     if gate.locked():
         raise HTTPException(429, "inference busy")
     encoded = body.model_dump(mode="json")
-    digest = hashlib.sha256(json.dumps(encoded, sort_keys=True).encode()).hexdigest()
+    digest = bridge_request_fingerprint(encoded)
     folder = RUN_ROOT / str(body.job_id)
     folder.mkdir(exist_ok=True)
     fingerprint = folder / "fingerprint.txt"
@@ -91,6 +92,7 @@ async def generate(body: Generation, request: Request):
                 raise HTTPException(413, "reference too large")
             (folder / "reference.wav").write_bytes(data)
             encoded.pop("reference_audio_base64")
+            encoded.pop("claim_id", None)
             (folder / "request.json").write_text(
                 json.dumps(encoded, ensure_ascii=False), encoding="utf-8"
             )
@@ -129,7 +131,7 @@ async def generate(body: Generation, request: Request):
                     if sys.platform == "win32"
                     else 0,
                 )
-                active[str(body.job_id)] = process
+                active.register(str(body.job_id), str(body.claim_id), process)
                 deadline = time.monotonic() + 1800
                 try:
                     while process.poll() is None:
@@ -144,7 +146,7 @@ async def generate(body: Generation, request: Request):
                     completed.write_text(digest)
                 finally:
                     await asyncio.to_thread(terminate_tree, process)
-                    active.pop(str(body.job_id), None)
+                    active.discard(str(body.claim_id))
                     (folder / "reference.wav").unlink(missing_ok=True)
                     if not completed.exists():
                         output.unlink(missing_ok=True)
@@ -159,10 +161,10 @@ async def generate(body: Generation, request: Request):
         }
 
 
-@app.delete("/jobs/{job_id}")
-async def cancel(job_id: UUID, request: Request):
+@app.delete("/claims/{claim_id}")
+async def cancel(claim_id: UUID, request: Request):
     authorize(request)
-    process = active.get(str(job_id))
+    process = active.cancel_target(str(claim_id))
     if process and process.poll() is None:
         await asyncio.to_thread(terminate_tree, process)
     return {"status": "cancelled"}
@@ -184,7 +186,7 @@ async def erase_owner(owner_id: UUID, request: Request):
             continue
         if owner != str(owner_id):
             continue
-        process = active.get(folder.name)
+        process = active.for_job(folder.name)
         if process and process.poll() is None:
             raise HTTPException(409, "owner inference still active")
         shutil.rmtree(folder)

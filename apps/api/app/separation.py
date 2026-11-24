@@ -6,6 +6,7 @@ import base64
 import httpx
 
 from app.config import get_settings
+from app.singing_idempotency import bridge_job_and_claim
 from app.worker import PermanentJobError, RetryableJobError
 
 
@@ -15,7 +16,7 @@ async def separate(data, claim):
         raise PermanentJobError("VOCAL_SEPARATION_UNAVAILABLE")
     endpoint = settings.singing_service_url.rstrip("/")
     headers = {"Authorization": "Bearer " + settings.singing_service_token}
-    bridge_job = str(claim["worker_token"])
+    bridge_job, bridge_claim = bridge_job_and_claim(claim)
     try:
         async with (
             httpx.AsyncClient(timeout=500, trust_env=False) as client,
@@ -25,6 +26,7 @@ async def separate(data, claim):
                 headers=headers,
                 json={
                     "job_id": bridge_job,
+                    "claim_id": bridge_claim,
                     "owner_id": str(claim["owner_id"]),
                     "reference_audio_base64": base64.b64encode(data).decode(),
                     "lyrics": "separation",
@@ -50,7 +52,7 @@ async def separate(data, claim):
     except asyncio.CancelledError:
         async with httpx.AsyncClient(timeout=5, trust_env=False) as client:
             try:
-                await client.delete(endpoint + f"/jobs/{bridge_job}", headers=headers)
+                await client.delete(endpoint + f"/claims/{bridge_claim}", headers=headers)
             except httpx.HTTPError:
                 pass
         raise

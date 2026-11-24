@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.identity import Session, User
+from app.singing_idempotency import bridge_job_and_claim, generation_asset_id
 from app.storage.s3 import S3Storage
 from app.upload_workflows import asset_owned
 
@@ -167,10 +168,8 @@ async def generate(state, claim_context):
     data = await asyncio.to_thread(read)
     url = settings.singing_service_url.rstrip("/")
     headers = {"Authorization": f"Bearer {settings.singing_service_token}"}
-    identifier = str(uuid4())
-    # The bridge's idempotency namespace is unique to this worker claim; cancellations
-    # cannot kill a replacement attempt that reclaimed the same business job.
-    bridge_job = str(claim_context["worker_token"])
+    bridge_job, bridge_claim = bridge_job_and_claim(claim_context)
+    identifier = generation_asset_id(bridge_job)
     try:
         async with httpx.AsyncClient(timeout=1750, trust_env=False) as client:
             async with client.stream(
@@ -179,6 +178,7 @@ async def generate(state, claim_context):
                 headers=headers,
                 json={
                     "job_id": bridge_job,
+                    "claim_id": bridge_claim,
                     "owner_id": state["owner_id"],
                     "reference_audio_base64": base64.b64encode(data).decode(),
                     "lyrics": config.lyrics,
@@ -221,7 +221,7 @@ async def generate(state, claim_context):
     except asyncio.CancelledError:
         async with httpx.AsyncClient(timeout=5, trust_env=False) as client:
             try:
-                await client.delete(url + f"/jobs/{bridge_job}", headers=headers)
+                await client.delete(url + f"/claims/{bridge_claim}", headers=headers)
             except httpx.HTTPError:
                 pass
         raise
