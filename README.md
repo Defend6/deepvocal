@@ -62,3 +62,10 @@ deepvocal/
 - `apps/web/e2e/`：浏览器端流程测试。
 - `infra/`：应用及其依赖服务的容器配置。
 - `scripts/`：项目启动、语料管理和本地维护脚本。
+
+### 向量后端对照
+
+入口为 `scripts/compare-retrieval.ps1`，使用本地已有语料及冻结评测集，输出 pgvector/Milvus 的 A—F 结果和调度控制组 G。先启动 `infra/compose.pgvector.yml` 中的独立 pgvector 服务、原有 Milvus/Neo4j 及本地 embedding/reranker。真实结果和缓存仅保存在本地测试目录。
+
+默认检索仍使用 Milvus。可通过 `KNOWLEDGE_VECTOR_BACKEND=pgvector` 与 `PGVECTOR_URL` 选择 PostgreSQL，使用独立的 `KNOWLEDGE_INDEX_MANIFEST` 后执行 `python -m app.knowledge.cli ingest` 和 `verify`；已有 manifest 不跨后端复用。Docker 内数据库地址使用服务名 `pgvector`，本地 Python 使用 `127.0.0.1:15433`。当前 pgvector 适配器使用精确余弦检索。
+Docker 中独立 manifest 通过 `KNOWLEDGE_CONTAINER_INDEX_MANIFEST=/app/datasets/indexes/pgvector.json` 配置，保存在原有索引卷内。

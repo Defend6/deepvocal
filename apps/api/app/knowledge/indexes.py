@@ -29,8 +29,6 @@ class KnowledgeIndexes:
     def verify(self, bundle: dict) -> dict:
         """Check stored ids against the governed bundle, without altering either database."""
         from neo4j import GraphDatabase
-        from pymilvus import MilvusClient
-
         manifest = json.loads(
             Path(self.settings.knowledge_index_manifest).read_text(encoding="utf-8")
         )
@@ -39,19 +37,25 @@ class KnowledgeIndexes:
         if manifest.get("graph_identity") != graph_identity(bundle):
             raise ValueError("graph schema or catalog changed; rebuild graph index")
         expected = {row["id"] for row in bundle["chunks"]}
-        client = MilvusClient(uri=self.settings.milvus_uri)
-        try:
-            records = client.query(
-                collection_name=manifest["collection"],
-                filter="",
-                output_fields=["id"],
-                limit=len(expected) + 1,
-                consistency_level="Strong",
-            )
-        finally:
-            client.close()
+        self._check_backend(manifest)
+        if self.settings.knowledge_vector_backend == "pgvector":
+            from app.knowledge.pgvector import PgVectorIndex
+
+            records = [{"id": key} for key in PgVectorIndex(self.settings).ids(manifest)]
+        else:
+            from pymilvus import MilvusClient
+
+            client = MilvusClient(uri=self.settings.milvus_uri)
+            try:
+                records = client.query(
+                    collection_name=manifest["collection"], filter="",
+                    output_fields=["id"], limit=len(expected) + 1,
+                    consistency_level="Strong",
+                )
+            finally:
+                client.close()
         if {row["id"] for row in records} != expected:
-            raise ValueError("Milvus ids differ from the knowledge bundle")
+            raise ValueError("vector database ids differ from the knowledge bundle")
         with GraphDatabase.driver(
             self.settings.neo4j_uri, auth=(self.settings.neo4j_user, self.settings.neo4j_password)
         ) as driver:
@@ -92,7 +96,10 @@ class KnowledgeIndexes:
             "fingerprint": bundle["fingerprint"],
             "collection": manifest["collection"],
             "dimension": manifest["dimension"],
-            "milvus_chunks": len(records),
+            "milvus_chunks": len(records) if self.settings.knowledge_vector_backend == "milvus" else None,
+            "pgvector_chunks": len(records) if self.settings.knowledge_vector_backend == "pgvector" else None,
+            "vector_backend": self.settings.knowledge_vector_backend,
+            "vector_chunks": len(records),
             "neo4j_chunks": len(graph[0]["ids"]),
             "graph_entities": stats[0]["entities"],
             "graph_mentions": stats[0]["mentions"],
@@ -210,6 +217,10 @@ class KnowledgeIndexes:
             return rank_graph_candidates(bundle, query, [dict(row) for row in records])
 
     def vector_load(self, bundle: dict, vectors: list[list[float]]) -> dict:
+        if self.settings.knowledge_vector_backend == "pgvector":
+            from app.knowledge.pgvector import PgVectorIndex
+
+            return PgVectorIndex(self.settings).load(bundle, vectors)
         from pymilvus import MilvusClient
 
         name = "dv_" + index_identity(bundle, self.settings)
@@ -237,9 +248,11 @@ class KnowledgeIndexes:
         finally:
             client.close()
 
-    def vector_search(self, bundle: dict, vector: list[float]) -> list[str]:
-        from pymilvus import MilvusClient
+    def _check_backend(self, manifest: dict) -> None:
+        if manifest.get("backend", "milvus") != self.settings.knowledge_vector_backend:
+            raise ValueError("vector backend changed; rebuild indexes with a separate manifest")
 
+    def vector_search(self, bundle: dict, vector: list[float]) -> list[str]:
         manifest = json.loads(
             Path(self.settings.knowledge_index_manifest).read_text(encoding="utf-8")
         )
@@ -247,6 +260,13 @@ class KnowledgeIndexes:
             raise ValueError("embedding model or corpus changed; rebuild indexes")
         if len(vector) != manifest["dimension"]:
             raise ValueError("query vector dimension mismatch")
+        self._check_backend(manifest)
+        if self.settings.knowledge_vector_backend == "pgvector":
+            from app.knowledge.pgvector import PgVectorIndex
+
+            return PgVectorIndex(self.settings).search(manifest, vector)
+        from pymilvus import MilvusClient
+
         client = MilvusClient(uri=self.settings.milvus_uri)
         try:
             results = client.search(

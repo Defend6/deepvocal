@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:0.8.1-pg16
         env: { POSTGRES_DB: deepvocal, POSTGRES_USER: deepvocal, POSTGRES_PASSWORD: deepvocal }
         ports: ["5432:5432"]
         options: --health-cmd "pg_isready -U deepvocal" --health-interval 5s --health-timeout 3s --health-retries 20
@@ -19,6 +19,7 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379/0
       TEST_DATABASE_URL: postgresql+asyncpg://deepvocal:deepvocal@127.0.0.1:5432/deepvocal
       TEST_REDIS_URL: redis://127.0.0.1:6379/15
+      TEST_PGVECTOR_URL: postgresql://deepvocal:deepvocal@127.0.0.1:5432/deepvocal
       MODEL_API_KEY: ""
     steps:
       - uses: actions/checkout@v4

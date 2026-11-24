@@ -169,7 +169,7 @@ class KnowledgeService:
                 else None,
                 "citations": [self.citation(row, i) for i, row in enumerate(evidence, 1)],
                 "retrieval": {
-                    "mode": "lexical+milvus+neo4j+reranker",
+                    "mode": f"lexical+{self.settings.knowledge_vector_backend}+neo4j+reranker",
                     "version": bundle["version"],
                 },
             }

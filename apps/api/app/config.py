@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "change-me-local-only"
     milvus_uri: str = "http://127.0.0.1:19530"
+    knowledge_vector_backend: str = "milvus"
+    pgvector_url: str = ""
     corpus_root: str = str(Path(__file__).resolve().parents[3] / "datasets")
     s3_endpoint: str = "http://127.0.0.1:9000"
     s3_public_endpoint: str = ""
@@ -71,6 +73,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth_configuration(self) -> "Settings":
+        if self.knowledge_vector_backend not in {"milvus", "pgvector"}:
+            raise ValueError("knowledge_vector_backend must be milvus or pgvector")
         if self.auth_mode not in {"local", "oidc"}:
             raise ValueError("auth_mode must be local or oidc")
         if self.auth_mode == "local" and self.deepvocal_mode.lower() not in {
