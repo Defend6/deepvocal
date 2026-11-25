@@ -35,6 +35,9 @@ def test_license_language_hash_and_production_gates(tmp_path):
     assert not permitted(row, "production")
     assert permitted({**row, "language": "en"}, "research")
     assert not permitted({**row, "license": "CC-BY-NC-4.0"}, "research")
+    public_domain = {**row, "license": "PUBLIC-DOMAIN-US-GOV", "review_status": "USER_ASSUMED_APPROVED"}
+    assert permitted(public_domain, "research")
+    assert not permitted(public_domain, "production")
     assert not permitted({**row, "text": "tampered"}, "research")
     bundle["chunks"][0]["text"] = "modified without review"
     Path(settings.knowledge_bundle).write_text(json.dumps(bundle), encoding="utf-8")

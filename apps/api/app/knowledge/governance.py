@@ -24,6 +24,7 @@ def permitted(row: dict, mode: str) -> bool:
             "CC-BY-SA-4.0",
             "CC-BY-4.0",
             "CC0-1.0",
+            "PUBLIC-DOMAIN-US-GOV",
         }
     return (
         mode == "production"
