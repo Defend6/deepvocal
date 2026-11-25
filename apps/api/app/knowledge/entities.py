@@ -18,13 +18,18 @@ def normalize(value: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", value).casefold()).strip()
 
 
-def alias_spans(text: str, alias: str) -> list[tuple[int, int]]:
-    """Keep offsets in the original text, including case/width variants."""
+def _normalized_text_with_offsets(text: str) -> tuple[str, list[int]]:
     normalized, offsets = [], []
     for index, char in enumerate(text):
         for expanded in unicodedata.normalize("NFKC", char).casefold():
             normalized.append(expanded)
             offsets.append(index)
+    return "".join(normalized), offsets
+
+
+def _alias_spans_in_normalized(
+    haystack: str, offsets: list[int], alias: str
+) -> list[tuple[int, int]]:
     needle = normalize(alias)
     if not needle:
         return []
@@ -33,8 +38,13 @@ def alias_spans(text: str, alias: str) -> list[tuple[int, int]]:
         pattern = r"(?<![a-z0-9])" + pattern
     if needle[-1].isascii() and needle[-1].isalnum():
         pattern += r"(?![a-z0-9])"
-    haystack = "".join(normalized)
     return [(offsets[m.start()], offsets[m.end() - 1] + 1) for m in re.finditer(pattern, haystack)]
+
+
+def alias_spans(text: str, alias: str) -> list[tuple[int, int]]:
+    """Keep offsets in the original text, including case/width variants."""
+    haystack, offsets = _normalized_text_with_offsets(text)
+    return _alias_spans_in_normalized(haystack, offsets, alias)
 
 
 def catalog_for(bundle: dict) -> dict:
@@ -78,12 +88,15 @@ class EntityLinker:
 
     def link(self, text: str, *, query: bool = False) -> list[dict]:
         candidates = []
+        # Normalize each document once; rebuilding its codepoint-offset map for every alias
+        # made graph compilation scale as O(alias_count × document_length).
+        haystack, offsets = _normalized_text_with_offsets(text)
         for alias, keys in self.aliases.items():
             # Ambiguous aliases must be resolved by explicit longer wording, never guessed.
             if len(keys) != 1:
                 continue
             key = next(iter(keys))
-            for start, end in alias_spans(text, alias):
+            for start, end in _alias_spans_in_normalized(haystack, offsets, alias):
                 candidates.append({"id": key, "start": start, "end": end,
                                    "surface": text[start:end], "alias": alias})
         candidates.sort(key=lambda row: (-(row["end"] - row["start"]), row["start"], row["id"]))

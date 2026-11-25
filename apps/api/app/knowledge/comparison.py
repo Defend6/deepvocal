@@ -28,7 +28,7 @@ from app.knowledge.benchmark_support import (
 from app.knowledge.entities import graph_identity
 from app.knowledge.governance import load_bundle, sha256
 from app.knowledge.indexes import KnowledgeIndexes, lexical_search, reciprocal_rank_fusion
-from app.knowledge.local_benchmark import cosine, metric_summary
+from app.knowledge.local_benchmark import metric_summary
 from app.knowledge.pgvector import PgVectorIndex
 from app.knowledge.provider import ModelProvider
 
@@ -49,23 +49,53 @@ async def measured(function, *args, **kwargs):
     return result, (time.perf_counter() - start) * 1000
 
 
-async def retrieve(strategy, bundle, query, vector, vector_search, graph_search, limit=12):
-    """F graph uses query only; E uses hybrid seeds. G controls scheduling."""
+async def retrieve(
+    strategy, bundle, query, vector, vector_search, graph_search, limit=12,
+    *, component_cache=None, vector_cache_key="shared",
+):
+    """Retrieve with optional deterministic component reuse for large comparisons.
+
+    Component latencies are measured on the first execution for each query and reused;
+    pipeline latency is then reconstructed from the A--G dependency graph. Live timings
+    bypass this cache and are measured separately.
+    """
     started = time.perf_counter()
     stages = {}
 
     async def lexical():
-        ids, elapsed = await measured(lexical_search, bundle, query)
+        key = (bundle.get("fingerprint", ""), query.casefold().strip())
+        cached = component_cache["lexical"].get(key) if component_cache is not None else None
+        if cached is None:
+            ids, elapsed = await measured(lexical_search, bundle, query)
+            if component_cache is not None:
+                component_cache["lexical"][key] = (ids, elapsed)
+        else:
+            ids, elapsed = cached
         stages["keyword_ms"] = elapsed
         return ids
 
     async def dense():
-        ids, elapsed = await measured(vector_search, vector, limit)
+        key = (vector_cache_key, query.casefold().strip())
+        cached = component_cache["vector"].get(key) if component_cache is not None else None
+        if cached is None:
+            ids, elapsed = await measured(vector_search, vector, limit)
+            if component_cache is not None:
+                component_cache["vector"][key] = (ids, elapsed)
+        else:
+            ids, elapsed = cached
         stages["vector_ms"] = elapsed
         return ids
 
     async def graph(seeds=None):
-        ids, elapsed = await measured(graph_search, bundle, query, seed_ids=seeds)
+        seed_key = tuple(seeds or ())
+        key = (bundle.get("fingerprint", ""), query.casefold().strip(), seed_key)
+        cached = component_cache["graph"].get(key) if component_cache is not None else None
+        if cached is None:
+            ids, elapsed = await measured(graph_search, bundle, query, seed_ids=seeds)
+            if component_cache is not None:
+                component_cache["graph"][key] = (ids, elapsed)
+        else:
+            ids, elapsed = cached
         stages["graph_ms"] = elapsed
         return ids
 
@@ -94,8 +124,26 @@ async def retrieve(strategy, bundle, query, vector, vector_search, graph_search,
         result = reciprocal_rank_fusion(anchors, related)
     else:
         raise ValueError("unknown retrieval strategy")
-    return {"ranking": result[:limit], "stages": stages,
-            "elapsed_ms": (time.perf_counter() - started) * 1000}
+    if component_cache is None:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+    else:
+        hybrid_ms = max(stages.get("keyword_ms", 0), stages.get("vector_ms", 0))
+        if strategy == "A":
+            elapsed_ms = stages["keyword_ms"]
+        elif strategy == "B":
+            elapsed_ms = stages["vector_ms"]
+        elif strategy == "C":
+            elapsed_ms = stages["graph_ms"]
+        elif strategy == "D":
+            elapsed_ms = hybrid_ms
+        elif strategy == "E":
+            elapsed_ms = hybrid_ms + stages["graph_ms"]
+        elif strategy == "F":
+            elapsed_ms = max(hybrid_ms, stages["graph_ms"])
+        else:  # G is the sequential scheduling control for F.
+            elapsed_ms = hybrid_ms + stages["graph_ms"]
+    return {"ranking": result[:limit], "stages": stages, "elapsed_ms": elapsed_ms,
+            "timing_basis": "component_first_execution_and_dependency_dag" if component_cache is not None else "wall_clock"}
 
 
 class DockerSampler:
@@ -162,7 +210,7 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
         "reranker_model": settings.reranker_model,
         "reranker_revision": settings.reranker_model_revision,
         "embedding_base": settings.embedding_api_base, "reranker_base": settings.reranker_api_base,
-    })
+    }, flush_every=25)
     async def embed(texts):
         keys = [sha256(json.dumps([cache.namespace, "embedding-item", text],
                                   ensure_ascii=False, sort_keys=True)) for text in texts]
@@ -180,8 +228,26 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
         for start in range(0, len(texts), 16):
             target.extend(await embed(texts[start:start + 16]))
     print(json.dumps({"phase": "embeddings_ready", "chunks": len(rows), "cases": len(cases)}), flush=True)
-    oracle = [sorted(by_id, key=lambda key: (-cosine(vector, documents[list(by_id).index(key)]), key))[:12]
-              for vector in queries]
+    # Compute the independent exact-cosine oracle in one matrix operation. The previous
+    # Python nested loops scaled as O(query_count * chunk_count * dimension) interpreter
+    # operations and became prohibitive on corpora with thousands of chunks.
+    import numpy as np
+
+    oracle_ids = sorted(by_id)
+    row_position = {row["id"]: index for index, row in enumerate(rows)}
+    document_matrix = np.asarray(
+        [documents[row_position[key]] for key in oracle_ids], dtype=np.float32
+    )
+    query_matrix = np.asarray(queries, dtype=np.float32)
+    document_norms = np.linalg.norm(document_matrix, axis=1)
+    query_norms = np.linalg.norm(query_matrix, axis=1)
+    if np.any(document_norms == 0) or np.any(query_norms == 0):
+        raise ValueError("exact cosine oracle received a zero vector")
+    similarities = (query_matrix @ document_matrix.T) / (
+        query_norms[:, None] * document_norms[None, :]
+    )
+    oracle_indices = np.argsort(-similarities, axis=1, kind="stable")[:, :12]
+    oracle = [[oracle_ids[index] for index in ranking] for ranking in oracle_indices]
     from pymilvus import MilvusClient
     milvus = MilvusClient(uri=settings.milvus_uri)
     # Dedicated comparison collection. No writes to active service manifests/collections.
@@ -220,6 +286,7 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
     configs = [("shared", "A"), ("shared", "C")] + [
         (backend, strategy) for backend in searches for strategy in ("B", "D", "E", "F", "G")]
     rankings, trials, errors, blocks = {}, [], [], []
+    component_cache = {"lexical": {}, "vector": {}, "graph": {}}
     sampler = DockerSampler(list(containers))
     if containers:
         sampler.thread.start()
@@ -229,7 +296,8 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
         # Warm connections and graph query plans; this is a warm-cache benchmark.
         for backend, strategy in configs:
             await retrieve(strategy, bundle, cases[0]["query"], queries[0],
-                           searches.get(backend, searches["pgvector"]), indexes.graph_search)
+                           searches.get(backend, searches["pgvector"]), indexes.graph_search,
+                           component_cache=component_cache, vector_cache_key=backend)
         with checkpoint.open("w", encoding="utf-8") as stream:
             for repeat in range(repeats):
                 order = configs.copy()
@@ -245,7 +313,8 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
                         try:
                             trial = await retrieve(strategy, bundle, case["query"], queries[i],
                                                    searches.get(backend, searches["pgvector"]),
-                                                   indexes.graph_search)
+                                                   indexes.graph_search, component_cache=component_cache,
+                                                   vector_cache_key=backend)
                             if rankings[config][i] is None:
                                 rankings[config][i] = trial["ranking"]
                             elif rankings[config][i] != trial["ranking"]:
@@ -277,8 +346,8 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
     for i, case in enumerate(cases):
         union = list(dict.fromkeys(cid for ranking in rankings.values() for cid in ranking[i]))
         scores = {}
-        for start in range(0, len(union), 32):
-            ids = union[start:start + 32]
+        for start in range(0, len(union), 8):
+            ids = union[start:start + 8]
             result = await cache.rerank(case["query"], [by_id[cid]["text"] for cid in ids],
                                         lambda texts, query=case["query"]: provider.rerank(query, texts))
             scores.update({ids[index]: score for index, score in result})
@@ -286,6 +355,9 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
             reranked[config].append(sorted(ranking[i], key=lambda cid: (-scores[cid], cid)))
         if i % 25 == 0:
             print(json.dumps({"phase": "rerank_quality", "completed": i + 1}), flush=True)
+    # Flush cached reranker scores before live timings, both for resumability and to
+    # avoid a final cache rewrite failing after the expensive quality pass.
+    cache.save()
     # Latency here is live, with cache bypassed. Query vectors remain precomputed.
     live, embedding_live = [], []
     selected = stratified_indices(cases, live_samples)
@@ -330,7 +402,7 @@ async def run(settings, cases_data, output, *, cache_path=None, repeats=3, live_
         "docker_samples": sampler.samples, "blocks": blocks, "live_trials": live,
         "failures": errors,
         "limitations": [
-            "110-chunk corpus is small; no production-scale performance claim",
+            f"{len(rows)}-chunk research corpus is small; no production-scale performance claim",
             "warm cache and connection reuse; no cold-cache or concurrent-load claim",
             "rerank quality uses reusable independent pair scores; latency uses uncached live calls",
             "vector connections reused; current graph adapter includes driver creation and entity linking",

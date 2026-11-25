@@ -34,8 +34,12 @@ def benchmark_cache_lock(path: Path | None):
 
 
 class BenchmarkCache:
-    def __init__(self, path: Path | None, identity: dict):
+    def __init__(self, path: Path | None, identity: dict, *, flush_every: int = 1):
+        if flush_every < 1:
+            raise ValueError("flush_every must be positive")
         self.path = path
+        self.flush_every = flush_every
+        self.unsaved_calls = 0
         self.namespace = sha256(json.dumps(identity, sort_keys=True))
         self.records = json.loads(path.read_text(encoding="utf-8")) if path and path.exists() else {}
         self.hits = 0
@@ -43,12 +47,14 @@ class BenchmarkCache:
 
     def save(self):
         if not self.path:
+            self.unsaved_calls = 0
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix(f".{uuid4().hex}.tmp")
         try:
             temporary.write_text(json.dumps(self.records, ensure_ascii=False), encoding="utf-8")
             temporary.replace(self.path)
+            self.unsaved_calls = 0
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -60,7 +66,9 @@ class BenchmarkCache:
         result = await invoke()
         self.calls += 1
         self.records[key] = result
-        self.save()
+        self.unsaved_calls += 1
+        if self.unsaved_calls >= self.flush_every:
+            self.save()
         return result
 
     async def rerank(self, query: str, texts: list[str], invoke):
@@ -70,17 +78,17 @@ class BenchmarkCache:
         missing = [i for i, key in enumerate(keys) if key not in self.records]
         self.hits += len(texts) - len(missing)
         if missing:
-            results = await self.call(
-                "rerank-batch", {"query": query, "texts": [texts[i] for i in missing]},
-                lambda: invoke([texts[i] for i in missing]),
-            )
+            results = await invoke([texts[i] for i in missing])
+            self.calls += 1
             if {index for index, _ in results} != set(range(len(missing))):
                 raise ValueError("incomplete cached reranking response")
             for index, score in results:
                 if not isinstance(score, (int, float)) or not math.isfinite(score):
                     raise ValueError("invalid cached reranking score")
                 self.records[keys[missing[index]]] = score
-            self.save()
+            self.unsaved_calls += 1
+            if self.unsaved_calls >= self.flush_every:
+                self.save()
         return sorted(enumerate(self.records[key] for key in keys), key=lambda pair: (-pair[1], pair[0]))
 
 

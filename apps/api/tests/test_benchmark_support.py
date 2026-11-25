@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import json
 
 import pytest
 
@@ -102,3 +103,21 @@ def test_parallel_cache_writers_fail_and_normal_errors_release_the_lock(tmp_path
     with benchmark_cache_lock(path):
         assert path.with_suffix(".json.lock").is_file()
     assert not path.with_suffix(".json.lock").exists()
+
+
+def test_large_rerank_cache_can_batch_durable_flushes(tmp_path):
+    calls = []
+
+    async def invoke(texts):
+        calls.append(texts)
+        return [(index, 0.5) for index, _ in enumerate(texts)]
+
+    path = tmp_path / "batched-cache.json"
+    cache = BenchmarkCache(path, {"model": "synthetic"}, flush_every=2)
+    asyncio.run(cache.rerank("q1", ["a"], invoke))
+    assert not path.exists()
+    asyncio.run(cache.rerank("q2", ["b"], invoke))
+    assert path.exists()
+    assert len(json.loads(path.read_text(encoding="utf-8"))) == 2
+    cache.save()
+    assert cache.unsaved_calls == 0
